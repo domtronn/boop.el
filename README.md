@@ -1,3 +1,5 @@
+<img src="boop.png" width="1200">
+
 # boop.el #
 
 **Boop** Is a tool designed to radiate state unobtrusively in the
