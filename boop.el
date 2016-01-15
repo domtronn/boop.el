@@ -93,7 +93,7 @@ Setting this value to `all` will run all the plugins in
       '((service-fuji jenkins "jenkins.connected-tv.tools.bbc.co.uk" "service-fuji")
         (contract-validation-int jenkins "jenkins.connected-tv.tools.bbc.co.uk" "taf-api-contract-validation-tests-on-int")
         ;; (jenkins "jenkins.connected-tv.tools.bbc.co.uk" "taf-router")
-        (script pass "pass")))
+        (script pass "fail")))
 
 (defvar boop-info-alist nil
 	"This is an alist that is created based on the current
@@ -135,9 +135,9 @@ Setting this value to `all` will run all the plugins in
   "Format the info values"
   (mapconcat
    '(lambda (info)
-      (cond ((string-equal (cdr info) boop-success) (boop--success))
-            ((string-equal (cdr info) boop-failure) (boop--failure))
-            (t (boop--warning)))) boop-info-alist " "))
+      (cond ((string-equal (cdr info) boop-success) (boop--success (format "%s" (car info))))
+            ((string-equal (cdr info) boop-failure) (boop--failure (format "%s" (car info))))
+            (t (boop--warning (car info))))) boop-info-alist ""))
 
 (defun boop-update-info ()
   "Execute all of the plugins and return a list of the results."
@@ -171,9 +171,9 @@ Setting this value to `all` will run all the plugins in
     (error "You are not running BOOP - Call `boop-start` to begin")))
 
 (defun boop--clear-info-list () (setq boop-info-alist nil))
-(defun boop--success () (propertize boop-monitor-symbol 'face `(foreground-color . ,boop-success-colour)))
-(defun boop--failure () (propertize boop-monitor-symbol 'face `(foreground-color . ,boop-failure-colour)))
-(defun boop--warning () (propertize boop-monitor-symbol 'face `(foreground-color . ,boop-warning-colour)))
+(defun boop--success (&optional help-echo) (propertize (format "%s " boop-monitor-symbol) 'face `(foreground-color . ,boop-success-colour) 'help-echo help-echo))
+(defun boop--failure (&optional help-echo) (propertize (format "%s " boop-monitor-symbol) 'face `(foreground-color . ,boop-failure-colour) 'help-echo help-echo))
+(defun boop--warning (&optional help-echo) (propertize (format "%s " boop-monitor-symbol) 'face `(foreground-color . ,boop-warning-colour) 'help-echo help-echo))
 
 ;; (run-at-time "10 sec" 10 'boop-execute-plugins)
 
