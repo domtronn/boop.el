@@ -30,6 +30,7 @@
 
 ;; TODO: Add in validation that `boop-plugins-dir` exists
 ;; TODO: Make the strategy stuff work
+;; TODO: Flush boops that aren't in `boop-config-alist`
 
 ;;;; Customs
 
@@ -92,8 +93,7 @@ Setting this value to `all` will run all the plugins in
 (setq boop-config-alist
       '((service-fuji jenkins "jenkins.connected-tv.tools.bbc.co.uk" "service-fuji")
         (contract-validation-int jenkins "jenkins.connected-tv.tools.bbc.co.uk" "taf-api-contract-validation-tests-on-int")
-        ;; (jenkins "jenkins.connected-tv.tools.bbc.co.uk" "taf-router")
-        (script pass "fail")))
+        (taf-router jenkins "jenkins.connected-tv.tools.bbc.co.uk" "taf-router")))
 
 (defvar boop-info-alist nil
 	"This is an alist that is created based on the current
@@ -137,7 +137,7 @@ Setting this value to `all` will run all the plugins in
    '(lambda (info)
       (cond ((string-equal (cdr info) boop-success) (boop--success (format "%s" (car info))))
             ((string-equal (cdr info) boop-failure) (boop--failure (format "%s" (car info))))
-            (t (boop--warning (car info))))) boop-info-alist ""))
+            (t (boop--warning (format "%s" (car info)))))) boop-info-alist ""))
 
 (defun boop-update-info ()
   "Execute all of the plugins and return a list of the results."
