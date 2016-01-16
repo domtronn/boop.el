@@ -191,10 +191,12 @@ Updating the result will also trigger any actions associated with that RESULT fo
       (setq boop-config-alist (append (list (list id)) boop-config-alist))
       (setq boop-result-alist (append (list (cons id status)) boop-result-alist)))))
 
-(defun deboop (id)
+(defun deboop (&optional id)
   "Remove boop with ID from `boop-config-alist` and sync with the results."
-  (setq boop-config-alist (assq-delete-all id boop-config-alist))
-  (boop--sync-result-and-config))
+  (interactive)
+  (let ((id (or id (intern (completing-read "Deboop: " boop-result-alist)))))
+    (setq boop-config-alist (assq-delete-all id boop-config-alist))
+    (boop--sync-result-and-config)))
 
 (defun beep-boop ()
   "List all of the boops with `STATUS`."
