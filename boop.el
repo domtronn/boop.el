@@ -37,6 +37,7 @@
 
 (require 'async)
 (require 'dash)
+(require 's)
 
 (defgroup boop nil
   "Manage how boop gets and displays monitoring results."
@@ -165,9 +166,15 @@ You can override the symbol in FORM using SYMBOL-OVERRIDE."
     (propertize (if symbol-override (format "%s" symbol-override)
                   (format "%c " symbol)) 'face `(foreground-color . ,colour) 'help-echo help-echo)))
 
+;; Shorten functions
+
 (defun boop--shorten-substring (id)
   "Formats an ID string to be the substring of up to 5 characters."
   (substring id 0 (min (length id) 5)))
+
+(defun boop--shorten-delim (id)
+  "Formats an ID string to be the substring of up to 5 characters."
+  (downcase (mapconcat (lambda (s) (substring s 0 1)) (s-split-words id) "-")))
 
 ;; Updating the results
 
