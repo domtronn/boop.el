@@ -1,4 +1,4 @@
-<img src="boop.png" width="1200">
+<img src="logo.png" width="1200">
 
 # boop.el #
 
