@@ -39,22 +39,26 @@
 (require 'dash)
 
 (defgroup boop nil
-	"Manage how boop gets and displays monitoring results."
-	:prefix "boop-"
-	:group 'tools
-	:group 'convenience)
+  "Manage how boop gets and displays monitoring results."
+  :prefix "boop-"
+  :group 'tools
+  :group 'convenience)
 
 (defcustom boop-default-format '(:symbol ?● :color "#ffcb13" :status "Unknown")
-  "The default config to propertize when a script echo result
-  doesn't matcha value in the `boop-monitor-alist`.")
+  "The default format when a script echo result doesn't match a value in the `boop-format-alist`.")
 
 (defcustom boop-format-alist
   '((1 :symbol ?● :color "#63ca13" :status "Pass")
     (0 :symbol ?● :color "#c64512" :status "Fail")
     (3 :symbol ?● :color "#23a2fb" :status "Building"))
-   "An alist of values of the form (RESULT CHARACTER COLOUR) used
-   to map the echo results of the plugin scripts to characters
-   and their colours.")
+   "An alist to map the echo results of the plugins to a display format.
+
+The alist is an INTEGER id that is expected to be returned from a plugin script,
+The `cdr` of this list is a plist with the following properties.
+
+:symbol - The character symbol to be displayed for that result (these can be emojis)
+:color  - The HEX color to render this text in (this is optional and has no effect on emojis)
+:status - A string representation of the status")
 
 (defcustom boop-execution-strategy 'config
   "The startegy to use for executing plugins.
@@ -67,71 +71,76 @@ Setting this value to `all` will run all the plugins in
 `boop-plugins-dir` with no arguments.")
 
 (defvar boop-plugins-dir (expand-file-name (concat (getenv "HOME") "/.boopelplugins"))
-	"The default directory to read plugins from.")
+  "The default directory to read plugins from.")
 
 (defvar boop-config-alist nil
-	"An alist of scripts and the arguments to run them with.
+  "An alist of scripts and the arguments to run them with.
 
 Each entry Should be in the format (ID SCRIPT_NAME &optional ARGS)")
 
 (defvar boop-result-alist nil
-	"This is an alist that is created based on the current
-	`boop-config-alist` to keep the results synchronized when
-	performing asynchronous actions")
+  "This is an alist to track the results of plugins and boops.
+
+It is created based on the current `boop-config-alist` to keep the
+results synchronized when performing asynchronous actions")
 
 (defvar boop-timer nil
-	"The value associated with the starting the boop timer so that
-	it can be canceled.")
+  "The id of the boop timer so that it can be canceled.")
 
-(defcustom boop-interval "10 sec"
-  "The interval at which to run `boop-update`, it should be in
-  the format that the elisp function `run-at-time` requires.
+(defcustom boop-interval 10
+  "The interval at which to run `boop-update`.
+
+It should be in the format that the elisp function `run-at-time` requires.
 
  e.g. 10 sec / 1 min"
   :group 'boop
-	:type 'string)
+  :type 'string)
 
 ;;;; Functions
 
 (defun boop--get-plugin-scripts ()
-	"Get a list of all of the executable scripts inside `boop-plugins-dir`."
-	(let ((files (directory-files boop-plugins-dir t)))
-		(--filter (and (file-executable-p it) (file-regular-p it)) files)))
+  "Get a list of all of the executable scripts inside `boop-plugins-dir`."
+  (let ((files (directory-files boop-plugins-dir t)))
+    (--filter (and (file-executable-p it) (file-regular-p it)) files)))
 
 (defun boop--get-plugin-alist ()
   "Get a list associating the file name base with the script path in `boop-plugins-dir`."
   (let ((plugins (boop--get-plugin-scripts)))
-    (mapcar '(lambda (it) (cons (intern (file-name-base it)) it)) plugins)))
+    (mapcar (lambda (it) (cons (intern (file-name-base it)) it)) plugins)))
 
 (defun boop-format-result ()
-  "Format the result values"
+  "Format `boop-result-alist` into a propertized display string."
   (mapconcat
-   '(lambda (result)
-      (let ((form (or (cdr (assoc (cdr result) boop-format-alist))
-                      boop-default-format)))
-        (boop--propertize form (format "%s" (car result))))) boop-result-alist ""))
+   (lambda (result)
+     (let ((form (or (cdr (assoc (cdr result) boop-format-alist))
+                     boop-default-format)))
+       (boop--propertize form (format "%s" (car result))))) boop-result-alist ""))
 
 (defun boop--propertize (form &optional help-echo)
+  "Propertizes FORM with optional HELP-ECHO string.
+
+FORM should be a plist containing, at minimum, a :symbol to render.
+See `boop-format-alist` for examples of what these FORMs should look like."
   (let ((symbol (plist-get form :symbol))
         (colour (plist-get form :color)))
     (propertize (format "%c " symbol) 'face `(foreground-color . ,colour) 'help-echo help-echo)))
 
-(defun boop--clear-result-list () (setq boop-result-alist nil))
+(defun boop--clear-result-list () "Clear the result list." (setq boop-result-alist nil))
 (defun boop--sync-result-and-config ()
-  "Synchronizes the result alist so that it only contains items in the config alist."
+  "Synchronizes the result alist to contain only items in the config alist."
   (setq boop-result-alist (--filter (assoc (car it) boop-config-alist) boop-result-alist)))
 
 (defun boop--handle-result (id result)
-  "Handle the result of the async `shell-command-to-string`"
+  "Update the resut with ID by handling the RESULT of the async `shell-command-to-string`."
   (if (assoc id boop-result-alist)
       (setf (cdr (assoc id boop-result-alist)) result)
     (setq boop-result-alist (append (list (cons id result)) boop-result-alist))))
 
 (defun boop-update-info ()
   "Execute all of the plugins and return a list of the results."
-	(let* ((plugins (boop--get-plugin-alist)))
+  (let* ((plugins (boop--get-plugin-alist)))
     (boop--sync-result-and-config)
-	  (-map (lambda (config)
+    (-map (lambda (config)
             (let* ((id (car config))
                    (script (cdr (assoc (cadr config) plugins)))
                    (args (mapconcat 'identity (cddr config) " ")))
@@ -144,6 +153,7 @@ Each entry Should be in the format (ID SCRIPT_NAME &optional ARGS)")
 ;; Interactive Functions
 
 (defun boop (id status)
+  "Manually boop something and set ID to have a status of STATUS."
   (if (assoc id boop-result-alist)
       ;; Update the boop
       (setf (cdr (assoc id boop-result-alist)) status)
@@ -164,7 +174,7 @@ Each entry Should be in the format (ID SCRIPT_NAME &optional ARGS)")
          (status (assoc (completing-read "Status: " status-alist) status-alist))
          (with-status (--map (format "%s" (car it)) (--filter (equal (cdr it) (cdr status)) boop-result-alist))))
     (if with-status
-        (message "%s Boops: %s" (car status) (mapconcat '(lambda (it) (format "[ %s ]" it)) with-status " "))
+        (message "%s Boops: %s" (car status) (mapconcat (lambda (it) (format "[ %s ]" it)) with-status " "))
       (message "No Boops have a status of [%s]" (car status)))))
 
 ;;;###autoload
@@ -172,15 +182,16 @@ Each entry Should be in the format (ID SCRIPT_NAME &optional ARGS)")
   "Start the boop timer executing your plugins."
   (interactive)
   (if (not boop-timer)
-      (setq boop-timer (run-at-time "1 sec" (string-to-number boop-interval) 'boop-update-info))
+      (setq boop-timer (run-at-time "1 sec" boop-interval 'boop-update-info))
     (error "You are already running BOOP - Call `boop-stop` to cancel")))
 
 ;;;###autoload
 (defun boop-stop ()
   "Stop the boop timer executing."
   (interactive)
+  (boop--clear-result-list)
   (if boop-timer
-      (progn (cancel-timer boop-timer) (setq boop-timer nil) (boop--clear-result-list))
+      (progn (cancel-timer boop-timer) (setq boop-timer nil))
     (error "You are not running BOOP - Call `boop-start` to begin")))
 
 ;; (run-at-time "10 sec" 10 'boop-execute-plugins)
