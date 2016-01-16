@@ -30,12 +30,13 @@
 
 ;; TODO: Add in validation that `boop-plugins-dir` exists
 ;; TODO: Make the strategy stuff work
+;; TODO: Add in Grouping of configs?
+;; TODO: Add in click behaviour
 
 ;;;; Customs
 
 (require 'async)
 (require 'dash)
-(require 's)
 
 (defgroup boop nil
 	"Manage how boop gets and displays monitoring results."
@@ -43,14 +44,14 @@
 	:group 'tools
 	:group 'convenience)
 
-(defcustom boop-format-default '("●" "#ffcb13")
+(defcustom boop-format-default '(:symbol ?● :color "#ffcb13" :status "Unknown")
   "The default config to propertize when a script echo result
   doesn't matcha value in the `boop-monitor-alist`.")
 
 (defcustom boop-format-alist
-  '(("1" "●" "#63ca13")
-    ("0" "●" "#c64512")
-    ("3" "●" "#23a2fb"))
+  '((1 :symbol ?● :color "#63ca13" :status "Pass")
+    (0 :symbol ?● :color "#c64512" :status "Fail")
+    (3 :symbol ?● :color "#23a2fb" :status "Building"))
    "An alist of values of the form (RESULT CHARACTER COLOUR) used
    to map the echo results of the plugin scripts to characters
    and their colours.")
@@ -111,9 +112,9 @@ Each entry Should be in the format (ID SCRIPT_NAME &optional ARGS)")
         (boop--propertize form (format "%s" (car result))))) boop-result-alist ""))
 
 (defun boop--propertize (form &optional help-echo)
-  (let ((symbol (car form))
-        (colour (cadr form)))
-    (propertize (format "%s " symbol) 'face `(foreground-color . ,colour) 'help-echo help-echo)))
+  (let ((symbol (plist-get form :symbol))
+        (colour (plist-get form :color)))
+    (propertize (format "%c " symbol) 'face `(foreground-color . ,colour) 'help-echo help-echo)))
 
 (defun boop--clear-result-list () (setq boop-result-alist nil))
 (defun boop--sync-result-and-config ()
@@ -137,7 +138,7 @@ Each entry Should be in the format (ID SCRIPT_NAME &optional ARGS)")
               ;; Only boop the configs with scripts
               (when script
                 (async-start `(lambda () (shell-command-to-string (format "%s %s" ,script ,args)))
-                             `(lambda (result) (boop--handle-result (quote ,id) (s-trim result)))))))
+                             `(lambda (result) (boop--handle-result (quote ,id) (string-to-number result)))))))
           boop-config-alist)))
 
 ;; Interactive Functions
@@ -152,6 +153,7 @@ Each entry Should be in the format (ID SCRIPT_NAME &optional ARGS)")
       (setq boop-result-alist (append (list (cons id status)) boop-result-alist)))))
 
 (defun unboop (id)
+  "Remove boop with ID from `boop-config-alist` and sync with the results."
   (setq boop-config-alist (assq-delete-all id boop-config-alist))
   (boop--sync-result-and-config))
 
