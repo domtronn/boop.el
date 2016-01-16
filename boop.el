@@ -265,9 +265,14 @@ Updating the result will also trigger any actions associated with that RESULT fo
 (defun beep-boop ()
   "List all of the boops with `STATUS`."
   (interactive)
-  (let* ((status-alist (--map (cons (plist-get (cdr it) :status) (car it)) boop-format-alist))
+  (let* ((status-alist (append (--map (cons (plist-get (cdr it) :status) (car it)) boop-format-alist)
+                               (list (list (plist-get boop-default-format :status)))))
          (status (assoc (completing-read "Status: " status-alist) status-alist))
-         (with-status (--map (format "%s" (car it)) (--filter (equal (cdr it) (cdr status)) boop-result-alist))))
+         (with-status
+          (--map (format "%s" (car it))
+                 (if (equal (car status) (plist-get boop-default-format :status))
+                     (--filter (not (-contains? (-map 'car boop-format-alist) (cdr it))) boop-result-alist)
+                     (--filter (equal (cdr it) (cdr status)) boop-result-alist)))))
     (if with-status
         (message "%s Boops: %s" (car status) (mapconcat (lambda (it) (format "[ %s ]" it)) with-status " "))
       (message "No Boops have a status of [%s]" (car status)))))
