@@ -77,6 +77,13 @@ a script in `boop-plugins-dir` with arguments.
 Setting this value to `all` will run all the plugins in
 `boop-plugins-dir` with no arguments.")
 
+(defvar boop-update-hook nil
+  "A list of hooks to run when `boop-update-info` runs.
+
+This allows you to programmatically create/update boops on an
+interval.  If you have anything you want to monitor using an
+elisp function, add that function to this list.")
+
 (defvar boop-plugins-dir (expand-file-name (concat (getenv "HOME") "/.boopelplugins"))
   "The default directory to read plugins from.")
 
@@ -156,11 +163,14 @@ Updating the result will also trigger any actions associated with that RESULT fo
       (funcall (if (symbolp action)
                    (symbol-function action)
                  action)))))
+;; Interactive Functions
 
 (defun boop-update-info ()
   "Execute all of the plugins and return a list of the results."
+  (interactive)
   (let* ((plugins (boop--get-plugin-alist)))
     (boop--sync-result-and-config)
+    (run-hooks 'boop-update-hook)
     (-map (lambda (config)
             (let* ((id (car config))
                    (script (cdr (assoc (cadr config) plugins)))
@@ -170,8 +180,6 @@ Updating the result will also trigger any actions associated with that RESULT fo
                 (async-start `(lambda () (shell-command-to-string (format "%s %s" ,script ,args)))
                              `(lambda (result) (boop--handle-result (quote ,id) (string-to-number result)))))))
           boop-config-alist)))
-
-;; Interactive Functions
 
 (defun boop (id status)
   "Manually boop something and set ID to have a status of STATUS."
