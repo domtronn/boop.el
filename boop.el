@@ -43,35 +43,16 @@
 	:group 'tools
 	:group 'convenience)
 
-(defcustom boop-success "1"
-	"The echo string to deem a plugin as successful"
-	:group 'boop
-	:type 'string)
+(defcustom boop-format-default '("?" "#ffcb13")
+  "The default config to propertize when a script echo result
+  doesn't matcha value in the `boop-monitor-alist`.")
 
-(defcustom boop-success-colour "#63ca13"
-	"The colour to use for success."
-	:group 'boop
-	:type 'string)
-
-(defcustom boop-failure "0"
-	"The echo string to deem a plugin as failed"
-	:group 'boop
-	:type 'string)
-
-(defcustom boop-failure-colour "#c64512"
-	"The colour to use for failure."
-	:group 'boop
-	:type 'string)
-
-(defcustom boop-warning-colour "#ffcb13"
-	"The colour to use for success."
-	:group 'boop
-	:type 'string)
-
-(defcustom boop-monitor-symbol "●"
-	"The symbol used as the monitor thing."
-	:group 'boop
-	:type 'string)
+(defcustom boop-format-alist
+  '(("1" "✓" "#63ca13")
+    ("0" "×" "#c64512"))
+   "An alist of values of the form (RESULT CHARACTER COLOUR) used
+   to map the echo results of the plugin scripts to characters
+   and their colours.")
 
 (defcustom boop-execution-strategy 'config
   "The startegy to use for executing plugins.
@@ -94,9 +75,10 @@ Each entry Should be in the format (ID SCRIPT_NAME &optional ARGS)")
 (setq boop-config-alist
       '((service-fuji jenkins "jenkins.connected-tv.tools.bbc.co.uk" "service-fuji")
         (contract-validation-int jenkins "jenkins.connected-tv.tools.bbc.co.uk" "taf-api-contract-validation-tests-on-int")
-        (taf-router jenkins "jenkins.connected-tv.tools.bbc.co.uk" "taf-router")))
+        (taf-router jenkins "jenkins.connected-tv.tools.bbc.co.uk" "taf-router")
+        (script pass "??")))
 
-(defvar boop-info-alist nil
+(defvar boop-result-alist nil
 	"This is an alist that is created based on the current
 	`boop-config-alist` to keep the results synchronized when
 	performing asynchronous actions")
@@ -129,35 +111,41 @@ Each entry Should be in the format (ID SCRIPT_NAME &optional ARGS)")
   (let ((plugins (boop--get-plugin-scripts)))
     (mapcar '(lambda (it) (cons (intern (file-name-base it)) it)) plugins)))
 
-(defun boop-format-info ()
-  "Format the info values"
+(defun boop-format-result ()
+  "Format the result values"
   (mapconcat
-   '(lambda (info)
-      (cond ((string-equal (cdr info) boop-success) (boop--success (format "%s" (car info))))
-            ((string-equal (cdr info) boop-failure) (boop--failure (format "%s" (car info))))
-            (t (boop--warning (format "%s" (car info)))))) boop-info-alist ""))
+   '(lambda (result)
+      (let ((form (or (cdr (assoc (cdr result) boop-format-alist))
+                      boop-format-default)))
+        (boop--propertize form (format "%s" (car result))))) boop-result-alist ""))
 
-(defun boop-sync-info-and-config ()
-  "Synchronizes the info alist so that it only contains items in the config alist."
-  (setq boop-info-alist (--filter (assoc (car it) boop-config-alist) boop-info-alist)))
+(defun boop--propertize (form &optional help-echo)
+  (let ((symbol (car form))
+        (colour (cadr form)))
+    (propertize (format "%s " symbol) 'face `(foreground-color . ,colour) 'help-echo help-echo)))
 
-(defun boop-handle-update-result (id result)
+(defun boop--clear-result-list () (setq boop-result-alist nil))
+(defun boop--sync-result-and-config ()
+  "Synchronizes the result alist so that it only contains items in the config alist."
+  (setq boop-result-alist (--filter (assoc (car it) boop-config-alist) boop-result-alist)))
+
+(defun boop--handle-result (id result)
   "Handle the result of the async `shell-command-to-string`"
-  (if (assoc id boop-info-alist)
-      (setf (cdr (assoc id boop-info-alist)) result)
-    (setq boop-info-alist (append (list (cons id result)) boop-info-alist))))
+  (if (assoc id boop-result-alist)
+      (setf (cdr (assoc id boop-result-alist)) result)
+    (setq boop-result-alist (append (list (cons id result)) boop-result-alist))))
 
 (defun boop-update-info ()
   "Execute all of the plugins and return a list of the results."
 	(let* ((plugins (boop--get-plugin-alist)))
-    (boop-sync-info-and-config)
+    (boop--sync-result-and-config)
 	  (-map (lambda (config)
             (let* ((id (car config))
                    (script (cdr (assoc (cadr config) plugins)))
                    (args (mapconcat 'identity (cddr config) " "))
                    (cmd (format "%s %s" script args)))
               (async-start `(lambda () (shell-command-to-string ,cmd))
-                           `(lambda (result) (boop-handle-update-result (quote ,id) (s-trim result))))))
+                           `(lambda (result) (boop--handle-result (quote ,id) (s-trim result))))))
           boop-config-alist)))
 
 ;; Interactive Functions
@@ -173,13 +161,8 @@ Each entry Should be in the format (ID SCRIPT_NAME &optional ARGS)")
   "Stop the boop timer executing."
   (interactive)
   (if boop-timer
-      (progn (cancel-timer boop-timer) (setq boop-timer nil) (boop--clear-info-list))
+      (progn (cancel-timer boop-timer) (setq boop-timer nil) (boop--clear-result-list))
     (error "You are not running BOOP - Call `boop-start` to begin")))
-
-(defun boop--clear-info-list () (setq boop-info-alist nil))
-(defun boop--success (&optional help-echo) (propertize (format "%s " boop-monitor-symbol) 'face `(foreground-color . ,boop-success-colour) 'help-echo help-echo))
-(defun boop--failure (&optional help-echo) (propertize (format "%s " boop-monitor-symbol) 'face `(foreground-color . ,boop-failure-colour) 'help-echo help-echo))
-(defun boop--warning (&optional help-echo) (propertize (format "%s " boop-monitor-symbol) 'face `(foreground-color . ,boop-warning-colour) 'help-echo help-echo))
 
 ;; (run-at-time "10 sec" 10 'boop-execute-plugins)
 
