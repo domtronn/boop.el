@@ -117,6 +117,9 @@ When non-nil, `boop-sort-func` should be a comparator funciton
 which takes two arguments, When set to nil, no sorting is
 applied.")
 
+(defvar boop--format-func 'boop--format-result "The function to use to format results.")
+(defvar boop--shorten-id-func 'boop--substring-id "The function used to shorten an ID string.")
+
 ;;;; Functions
 
 (defun boop--get-plugin-scripts ()
@@ -129,25 +132,45 @@ applied.")
   (let ((plugins (boop--get-plugin-scripts)))
     (mapcar (lambda (it) (cons (intern (file-name-base it)) it)) plugins)))
 
-(defun boop-format-result ()
+;; Formatting and Renderings the results
+
+(defun boop-format-results ()
   "Format `boop-result-alist` into a propertized display string."
   (let ((sorted-result-alist
          (if boop-sort-func (--sort (funcall boop-sort-func (cdr it) (cdr other)) boop-result-alist)
-           boop-result-alist)));;
-    (mapconcat
-     (lambda (result)
-       (let ((form (or (cdr (assoc (cdr result) boop-format-alist))
-                       boop-default-format)))
-         (boop--propertize form (format "%s" (car result))))) sorted-result-alist "")))
+           boop-result-alist)))
+    (mapconcat boop--format-func sorted-result-alist "")))
 
-(defun boop--propertize (form &optional help-echo)
+(defun boop--format-result-as-id (result)
+  "Format an individual RESULT using its ID."
+  (let* ((form (or (cdr (assoc (cdr result) boop-format-alist))
+                   boop-default-format))
+         (string-id (format "%s" (car result)))
+         (short-id (funcall boop--shorten-id-func string-id)))
+    (format "[%s] " (boop--propertize form string-id short-id))))
+
+(defun boop--format-result (result)
+  "Format an individual RESULT normally."
+  (let ((form (or (cdr (assoc (cdr result) boop-format-alist))
+                  boop-default-format)))
+    (boop--propertize form (format "%s" (car result)))))
+
+(defun boop--propertize (form &optional help-echo symbol-override)
   "Propertizes FORM with optional HELP-ECHO string.
 
 FORM should be a plist containing, at minimum, a :symbol to render.
-See `boop-format-alist` for examples of what these FORMs should look like."
+See `boop-format-alist` for examples of what these FORMs should look like.
+You can override the symbol in FORM using SYMBOL-OVERRIDE."
   (let ((symbol (plist-get form :symbol))
         (colour (plist-get form :color)))
-    (propertize (format "%c " symbol) 'face `(foreground-color . ,colour) 'help-echo help-echo)))
+    (propertize (if symbol-override (format "%s" symbol-override)
+                  (format "%c " symbol)) 'face `(foreground-color . ,colour) 'help-echo help-echo)))
+
+(defun boop--substring-id (id)
+  "Formats an ID string to be the substring of up to 5 characters."
+  (substring id 0 (min (length id) 5)))
+
+;; Updating the results
 
 (defun boop--clear-result-list () "Clear the result list." (setq boop-result-alist nil))
 (defun boop--sync-result-and-config ()
@@ -174,6 +197,7 @@ Updating the result will also trigger any actions associated with that RESULT fo
       (funcall (if (symbolp action)
                    (symbol-function action)
                action) name))))
+
 ;; Interactive Functions
 
 (defun boop-update-info ()
@@ -191,6 +215,13 @@ Updating the result will also trigger any actions associated with that RESULT fo
                 (async-start `(lambda () (shell-command-to-string (format "%s %s" ,script ,args)))
                              `(lambda (result) (boop--handle-result (quote ,id) (string-to-number result)))))))
           boop-config-alist)))
+
+(defun boop-flash-result-ids ()
+  "Flashes the results based on their ID for 5 seconds."
+  (interactive)
+  (let ((previous-format-func boop--format-func))
+    (setq boop--format-func 'boop--format-result-as-id)
+    (run-at-time "2 sec" nil `(lambda () (setq boop--format-func (quote ,previous-format-func))))))
 
 (defun boop (id status)
   "Manually boop something and set ID to have a status of STATUS."
