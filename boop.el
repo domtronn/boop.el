@@ -110,6 +110,13 @@ It should be in the format that the elisp function `run-at-time` requires.
   :group 'boop
   :type 'string)
 
+(defcustom boop-sort-func nil
+  "Comparator function used to sort `boop-result-alist` when being formatted.
+
+When non-nil, `boop-sort-func` should be a comparator funciton
+which takes two arguments, When set to nil, no sorting is
+applied.")
+
 ;;;; Functions
 
 (defun boop--get-plugin-scripts ()
@@ -124,11 +131,14 @@ It should be in the format that the elisp function `run-at-time` requires.
 
 (defun boop-format-result ()
   "Format `boop-result-alist` into a propertized display string."
-  (mapconcat
-   (lambda (result)
-     (let ((form (or (cdr (assoc (cdr result) boop-format-alist))
-                     boop-default-format)))
-       (boop--propertize form (format "%s" (car result))))) boop-result-alist ""))
+  (let ((sorted-result-alist
+         (if boop-sort-func (--sort (funcall boop-sort-func (cdr it) (cdr other)) boop-result-alist)
+           boop-result-alist)));;
+    (mapconcat
+     (lambda (result)
+       (let ((form (or (cdr (assoc (cdr result) boop-format-alist))
+                       boop-default-format)))
+         (boop--propertize form (format "%s" (car result))))) sorted-result-alist "")))
 
 (defun boop--propertize (form &optional help-echo)
   "Propertizes FORM with optional HELP-ECHO string.
