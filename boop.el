@@ -169,7 +169,8 @@ You can override the symbol in FORM using SYMBOL-OVERRIDE."
     (propertize (if symbol-override (format "%s" symbol-override) (format "%c " symbol))
                 'face      `(foreground-color . ,colour)
                 'help-echo help-echo
-                'local-map (eval map))))
+                'local-map (eval map)
+                'pointer (when map 'hand))))
 
 ;; Click bindings
 
