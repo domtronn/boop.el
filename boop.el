@@ -30,7 +30,6 @@
 
 ;; TODO: Add in validation that `boop-plugins-dir` exists
 ;; TODO: Make the strategy stuff work
-;; TODO: Flush boops that aren't in `boop-config-alist`
 
 ;;;; Customs
 
@@ -88,7 +87,9 @@ Setting this value to `all` will run all the plugins in
 	"The default directory to read plugins from.")
 
 (defvar boop-config-alist nil
-	"An alist of scripts and the arguments to run them with.")
+	"An alist of scripts and the arguments to run them with.
+
+Each entry Should be in the format (ID SCRIPT_NAME &optional ARGS)")
 
 (setq boop-config-alist
       '((service-fuji jenkins "jenkins.connected-tv.tools.bbc.co.uk" "service-fuji")
@@ -99,9 +100,6 @@ Setting this value to `all` will run all the plugins in
 	"This is an alist that is created based on the current
 	`boop-config-alist` to keep the results synchronized when
 	performing asynchronous actions")
-
-(defvar boop-info nil
-	"A variable to store the info produced by running the plugin scripts")
 
 (defvar boop-timer nil
 	"The value associated with the starting the boop timer so that
@@ -139,19 +137,27 @@ Setting this value to `all` will run all the plugins in
             ((string-equal (cdr info) boop-failure) (boop--failure (format "%s" (car info))))
             (t (boop--warning (format "%s" (car info)))))) boop-info-alist ""))
 
+(defun boop-sync-info-and-config ()
+  "Synchronizes the info alist so that it only contains items in the config alist."
+  (setq boop-info-alist (--filter (assoc (car it) boop-config-alist) boop-info-alist)))
+
+(defun boop-handle-update-result (id result)
+  "Handle the result of the async `shell-command-to-string`"
+  (if (assoc id boop-info-alist)
+      (setf (cdr (assoc id boop-info-alist)) result)
+    (setq boop-info-alist (append (list (cons id result)) boop-info-alist))))
+
 (defun boop-update-info ()
   "Execute all of the plugins and return a list of the results."
 	(let* ((plugins (boop--get-plugin-alist)))
+    (boop-sync-info-and-config)
 	  (-map (lambda (config)
             (let* ((id (car config))
                    (script (cdr (assoc (cadr config) plugins)))
                    (args (mapconcat 'identity (cddr config) " "))
                    (cmd (format "%s %s" script args)))
               (async-start `(lambda () (shell-command-to-string ,cmd))
-                           `(lambda (result)
-                              (if (assoc (quote ,id) boop-info-alist)
-                                  (setf (cdr (assoc (quote ,id) boop-info-alist)) (s-trim result))
-                                (setq boop-info-alist (append (list (cons (quote ,id) (s-trim result))) boop-info-alist)))))))
+                           `(lambda (result) (boop-handle-update-result (quote ,id) (s-trim result))))))
           boop-config-alist)))
 
 ;; Interactive Functions
