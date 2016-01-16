@@ -44,7 +44,7 @@
 	:group 'tools
 	:group 'convenience)
 
-(defcustom boop-format-default '(:symbol ?● :color "#ffcb13" :status "Unknown")
+(defcustom boop-default-format '(:symbol ?● :color "#ffcb13" :status "Unknown")
   "The default config to propertize when a script echo result
   doesn't matcha value in the `boop-monitor-alist`.")
 
@@ -108,7 +108,7 @@ Each entry Should be in the format (ID SCRIPT_NAME &optional ARGS)")
   (mapconcat
    '(lambda (result)
       (let ((form (or (cdr (assoc (cdr result) boop-format-alist))
-                      boop-format-default)))
+                      boop-default-format)))
         (boop--propertize form (format "%s" (car result))))) boop-result-alist ""))
 
 (defun boop--propertize (form &optional help-echo)
