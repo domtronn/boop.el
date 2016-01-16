@@ -53,12 +53,15 @@
     (3 :symbol ?● :color "#23a2fb" :status "Building"))
    "An alist to map the echo results of the plugins to a display format.
 
-The alist is an INTEGER id that is expected to be returned from a plugin script,
-The `cdr` of this list is a plist with the following properties.
+The alist is an INTEGER status id that is expected to be returned from a plugin
+script, the `cdr` of this list is a plist with the following properties.
 
-:symbol - The character symbol to be displayed for that result (these can be emojis)
-:color  - The HEX color to render this text in (this is optional and has no effect on emojis)
-:status - A string representation of the status")
+:symbol - The character symbol to be displayed for that
+          result (these can be emojis)
+:color  - &optional The HEX color to render this text in
+          (this has no effect on emojis)
+:status - &optional A string representation of the status
+          (used to filter items by natural language)
 
 (defcustom boop-execution-strategy 'config
   "The startegy to use for executing plugins.
