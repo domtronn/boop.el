@@ -62,6 +62,10 @@ script, the `cdr` of this list is a plist with the following properties.
           (this has no effect on emojis)
 :status - &optional A string representation of the status
           (used to filter items by natural language)
+:action - &optional A function to be called when this form status
+          is changed to.
+          e.g.  If a boop has a status of 1 then
+          changes to a status of 2 which has an action")
 
 (defcustom boop-execution-strategy 'config
   "The startegy to use for executing plugins.
@@ -136,8 +140,22 @@ See `boop-format-alist` for examples of what these FORMs should look like."
 (defun boop--handle-result (id result)
   "Update the resut with ID by handling the RESULT of the async `shell-command-to-string`."
   (if (assoc id boop-result-alist)
-      (setf (cdr (assoc id boop-result-alist)) result)
+      (boop--update-result id result)
     (setq boop-result-alist (append (list (cons id result)) boop-result-alist))))
+
+(defun boop--update-result (id result)
+  "Update the boop with ID to have the new RESULT.
+
+Updating the result will also trigger any actions associated with that RESULT form."
+  (let* ((current-result (cdr (assoc id boop-result-alist)))
+         (form (or (cdr (assoc result boop-format-alist))
+                   boop-default-format))
+         (action (plist-get form :action)))
+    (setf (cdr (assoc id boop-result-alist)) result)
+    (when (and (not (eq current-result result)) action)
+      (funcall (if (symbolp action)
+                   (symbol-function action)
+                 action)))))
 
 (defun boop-update-info ()
   "Execute all of the plugins and return a list of the results."
@@ -158,8 +176,7 @@ See `boop-format-alist` for examples of what these FORMs should look like."
 (defun boop (id status)
   "Manually boop something and set ID to have a status of STATUS."
   (if (assoc id boop-result-alist)
-      ;; Update the boop
-      (setf (cdr (assoc id boop-result-alist)) status)
+      (boop--update-result id status)
     (progn
       ;; Add the new boop to the config and results
       (setq boop-config-alist (append (list (list id)) boop-config-alist))
