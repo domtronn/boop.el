@@ -18,16 +18,6 @@ within **Emacs**, you can write plugin scripts and configure
 **Boop** to run these scripts periodically and print coloured dots
 in your `mode-line` to represent how that script returned.
 
-### Features ###
-
-* Jump to a file within the project
-* Toggle between code and its test file ( `main.js` <=> `mainSpec.js` )
-* Reformat a file with proper tabs/spaces indentation levels
-* Project specific styling/formatting
-* Create throw-away project instances from directories
-* Switch between buffers in a project
-* Per Instance Caching of projects for quick switching
-
 # Installation #
 
 Clone this repository and add it to Emac's `load-path`. Then require
