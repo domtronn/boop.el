@@ -145,17 +145,20 @@ applied.")
   "Format an individual RESULT using its ID."
   (let* ((form (or (cdr (assoc (cdr result) boop-format-alist))
                    boop-default-format))
+         (map-symbol (intern (format "boop-%s-mode-line-map" (car result))))
          (string-id (format "%s" (car result)))
          (short-id (funcall boop--shorten-id-func string-id)))
-    (format "[%s] " (boop--propertize form string-id short-id))))
+
+    (format "[%s] " (boop--propertize form string-id (when (boundp map-symbol) map-symbol) short-id))))
 
 (defun boop--format-result (result)
   "Format an individual RESULT normally."
   (let ((form (or (cdr (assoc (cdr result) boop-format-alist))
-                  boop-default-format)))
-    (boop--propertize form (format "%s" (car result)))))
+                  boop-default-format))
+        (map-symbol (intern (format "boop-%s-mode-line-map" (car result)))))
+    (boop--propertize form (format "%s" (car result)) (when (boundp map-symbol) map-symbol))))
 
-(defun boop--propertize (form &optional help-echo symbol-override)
+(defun boop--propertize (form &optional help-echo map symbol-override)
   "Propertizes FORM with optional HELP-ECHO string.
 
 FORM should be a plist containing, at minimum, a :symbol to render.
@@ -163,8 +166,18 @@ See `boop-format-alist` for examples of what these FORMs should look like.
 You can override the symbol in FORM using SYMBOL-OVERRIDE."
   (let ((symbol (plist-get form :symbol))
         (colour (plist-get form :color)))
-    (propertize (if symbol-override (format "%s" symbol-override)
-                  (format "%c " symbol)) 'face `(foreground-color . ,colour) 'help-echo help-echo)))
+    (propertize (if symbol-override (format "%s" symbol-override) (format "%c " symbol))
+                'face      `(foreground-color . ,colour)
+                'help-echo help-echo
+                'local-map (eval map))))
+
+;; Click bindings
+
+(defmacro boop-defmodelinemap (id f)
+  "Macro to create a mode-line-map-by-id."
+  (let ((id (intern (format "boop-%s-mode-line-map" id ))))
+    `(defvar ,id (let ((map (make-sparse-keymap)))
+                   (define-key map [mode-line down-mouse-1] ,f) map))))
 
 ;; Shorten functions
 
@@ -214,8 +227,11 @@ Updating the result will also trigger any actions associated with that RESULT fo
     (run-hooks 'boop-update-hook)
     (-map (lambda (config)
             (let* ((id (car config))
-                   (script (cdr (assoc (cadr config) plugins)))
-                   (args (mapconcat 'identity (cddr config) " ")))
+                   (click (plist-get (cdr config) :onclick))
+                   (script (cdr (assoc (plist-get (cdr config) :script) plugins)))
+                   (args (mapconcat 'identity (plist-get (cdr config) :args) " ")))
+              ;; Set up the :onclick events
+              (when click (eval `(boop-defmodelinemap ,id click)))
               ;; Only boop the configs with scripts
               (when script
                 (async-start `(lambda () (shell-command-to-string (format "%s %s" ,script ,args)))
