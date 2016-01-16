@@ -72,12 +72,6 @@ Setting this value to `all` will run all the plugins in
 
 Each entry Should be in the format (ID SCRIPT_NAME &optional ARGS)")
 
-(setq boop-config-alist
-      '((service-fuji jenkins "jenkins.connected-tv.tools.bbc.co.uk" "service-fuji")
-        (contract-validation-int jenkins "jenkins.connected-tv.tools.bbc.co.uk" "taf-api-contract-validation-tests-on-int")
-        (taf-router jenkins "jenkins.connected-tv.tools.bbc.co.uk" "taf-router")
-        (script pass "??")))
-
 (defvar boop-result-alist nil
 	"This is an alist that is created based on the current
 	`boop-config-alist` to keep the results synchronized when
@@ -96,10 +90,6 @@ Each entry Should be in the format (ID SCRIPT_NAME &optional ARGS)")
 	:type 'string)
 
 ;;;; Functions
-
-(defun boop-build-string (&rest args)
-  "Build the boop string by calling all of the functions in ARGS."
-  (concat " " (mapconcat 'funcall args " ")))
 
 (defun boop--get-plugin-scripts ()
 	"Get a list of all of the executable scripts inside `boop-plugins-dir`."
@@ -150,6 +140,7 @@ Each entry Should be in the format (ID SCRIPT_NAME &optional ARGS)")
 
 ;; Interactive Functions
 
+;;;###autoload
 (defun boop-start ()
   "Start the boop timer executing your plugins."
   (interactive)
@@ -157,6 +148,7 @@ Each entry Should be in the format (ID SCRIPT_NAME &optional ARGS)")
       (setq boop-timer (run-at-time "1 sec" (string-to-number boop-interval) 'boop-update-info))
     (error "You are already running BOOP - Call `boop-stop` to cancel")))
 
+;;;###autoload
 (defun boop-stop ()
   "Stop the boop timer executing."
   (interactive)
