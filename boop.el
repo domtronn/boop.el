@@ -157,12 +157,13 @@ Updating the result will also trigger any actions associated with that RESULT fo
   (let* ((current-result (cdr (assoc id boop-result-alist)))
          (form (or (cdr (assoc result boop-format-alist))
                    boop-default-format))
+         (name (car (assoc id boop-result-alist)))
          (action (plist-get form :action)))
     (setf (cdr (assoc id boop-result-alist)) result)
     (when (and (not (eq current-result result)) action)
       (funcall (if (symbolp action)
                    (symbol-function action)
-                 action)))))
+               action) name))))
 ;; Interactive Functions
 
 (defun boop-update-info ()
