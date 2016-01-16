@@ -43,14 +43,14 @@
 	:group 'tools
 	:group 'convenience)
 
-(defcustom boop-format-default '("?" "#ffcb13")
+(defcustom boop-format-default '("●" "#ffcb13")
   "The default config to propertize when a script echo result
   doesn't matcha value in the `boop-monitor-alist`.")
 
 (defcustom boop-format-alist
-  '(("1" "✓" "#63ca13")
-    ("0" "×" "#c64512")
-    ("3" "↻" "#23a2fb"))
+  '(("1" "●" "#63ca13")
+    ("0" "●" "#c64512")
+    ("3" "●" "#23a2fb"))
    "An alist of values of the form (RESULT CHARACTER COLOUR) used
    to map the echo results of the plugin scripts to characters
    and their colours.")
