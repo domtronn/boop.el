@@ -133,13 +133,27 @@ Each entry Should be in the format (ID SCRIPT_NAME &optional ARGS)")
 	  (-map (lambda (config)
             (let* ((id (car config))
                    (script (cdr (assoc (cadr config) plugins)))
-                   (args (mapconcat 'identity (cddr config) " "))
-                   (cmd (format "%s %s" script args)))
-              (async-start `(lambda () (shell-command-to-string ,cmd))
-                           `(lambda (result) (boop--handle-result (quote ,id) (s-trim result))))))
+                   (args (mapconcat 'identity (cddr config) " ")))
+              ;; Only boop the configs with scripts
+              (when script
+                (async-start `(lambda () (shell-command-to-string (format "%s %s" ,script ,args)))
+                             `(lambda (result) (boop--handle-result (quote ,id) (s-trim result)))))))
           boop-config-alist)))
 
 ;; Interactive Functions
+
+(defun boop (id status)
+  (if (assoc id boop-result-alist)
+      ;; Update the boop
+      (setf (cdr (assoc id boop-result-alist)) status)
+    (progn
+      ;; Add the new boop to the config and results
+      (setq boop-config-alist (append (list (list id)) boop-config-alist))
+      (setq boop-result-alist (append (list (cons id status)) boop-result-alist)))))
+
+(defun unboop (id)
+  (setq boop-config-alist (assq-delete-all id boop-config-alist))
+  (boop--sync-result-and-config))
 
 ;;;###autoload
 (defun boop-start ()
