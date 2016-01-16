@@ -49,7 +49,8 @@
 
 (defcustom boop-format-alist
   '(("1" "✓" "#63ca13")
-    ("0" "×" "#c64512"))
+    ("0" "×" "#c64512")
+    ("3" "↻" "#23a2fb"))
    "An alist of values of the form (RESULT CHARACTER COLOUR) used
    to map the echo results of the plugin scripts to characters
    and their colours.")
