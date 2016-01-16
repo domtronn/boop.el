@@ -118,8 +118,7 @@ which takes two arguments, When set to nil, no sorting is
 applied.")
 
 (defvar boop--format-func 'boop--format-result "The function to use to format results.")
-(defvar boop--shorten-id-func 'boop--substring-id "The function used to shorten an ID string.")
-
+(defvar boop--shorten-id-func 'boop--shorten-substring "The function used to shorten an ID string.")
 ;;;; Functions
 
 (defun boop--get-plugin-scripts ()
@@ -166,7 +165,7 @@ You can override the symbol in FORM using SYMBOL-OVERRIDE."
     (propertize (if symbol-override (format "%s" symbol-override)
                   (format "%c " symbol)) 'face `(foreground-color . ,colour) 'help-echo help-echo)))
 
-(defun boop--substring-id (id)
+(defun boop--shorten-substring (id)
   "Formats an ID string to be the substring of up to 5 characters."
   (substring id 0 (min (length id) 5)))
 
