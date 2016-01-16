@@ -152,10 +152,20 @@ Each entry Should be in the format (ID SCRIPT_NAME &optional ARGS)")
       (setq boop-config-alist (append (list (list id)) boop-config-alist))
       (setq boop-result-alist (append (list (cons id status)) boop-result-alist)))))
 
-(defun unboop (id)
+(defun deboop (id)
   "Remove boop with ID from `boop-config-alist` and sync with the results."
   (setq boop-config-alist (assq-delete-all id boop-config-alist))
   (boop--sync-result-and-config))
+
+(defun beep-boop ()
+  "List all of the boops with `STATUS`."
+  (interactive)
+  (let* ((status-alist (--map (cons (plist-get (cdr it) :status) (car it)) boop-format-alist))
+         (status (assoc (completing-read "Status: " status-alist) status-alist))
+         (with-status (--map (format "%s" (car it)) (--filter (equal (cdr it) (cdr status)) boop-result-alist))))
+    (if with-status
+        (message "%s Boops: %s" (car status) (mapconcat '(lambda (it) (format "[ %s ]" it)) with-status " "))
+      (message "No Boops have a status of [%s]" (car status)))))
 
 ;;;###autoload
 (defun boop-start ()
