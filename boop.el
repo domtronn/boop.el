@@ -276,7 +276,7 @@ Updating the result will also trigger any actions associated with that RESULT fo
          (action (plist-get form :action)))
 
     (plist-put (cdr (assoc id boop-result-alist)) :result result)
-    (plist-put (cdr (assoc id boop-result-alist)) :group group)
+    (when group (plist-put (cdr (assoc id boop-result-alist)) :group group))
     (when (and (not (eq current-result result)) action)
       (funcall (if (symbolp action)
                    (symbol-function action)
