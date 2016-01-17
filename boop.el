@@ -338,8 +338,7 @@ Updating the result will also trigger any actions associated with that RESULT fo
       (let ((result (if (equal group "no-group")
                         (-reduce '-concat (mapcar 'cdr (--filter (not (eq (car it) nil)) grouped)))
                       (-reduce '-concat (mapcar 'cdr (--filter (not (eq (car it) group)) grouped))))))
-        (setq boop-config-alist result)
-        (boop--sync-result-and-config)))))
+        (setq boop-config-alist result)))))
 
 (defun beep-boop ()
   "List all of the boops with `STATUS`."
