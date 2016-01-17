@@ -56,22 +56,21 @@ The `plist` should contain a;
 For example,
 ```elisp
 (setq boop-config-alist
+    '((contract-validation  :script examplejenkins
+                            :args ("my-jenkins.co.uk" "contract-validation")
+                            :group backend
+                            :onselect (lambda () (interactive) (browse-url "http://my-jenkins.co.uk/job/contract-validation")))
 
-	  '((contract-validation	:script examplejenkins
-															:args ("my-jenkins.co.uk" "contract-validation")
-															:group backend
-															:onselect (lambda () (interactive) (browse-url "http://my-jenkins.co.uk/job/contract-validation")))
+    (service-js             :script examplejenkins
+                            :args ("my-jenkins.co.uk" "service-fuji")
+                            :group backend)
 
-		(service-js						:script examplejenkins
-															:args ("my-jenkins.co.uk" "service-fuji")
-															:group backend)
+    (service-router         :script examplejenkins
+                            :args ("jenkins.connected-tv.tools.bbc.co.uk" "taf-router")
+                            :group backend)
 
-		(service-router				:script examplejenkins
-															:args ("jenkins.connected-tv.tools.bbc.co.uk" "taf-router")
-															:group backend)
-
-		(html-client					:script status
-															:onselect (lambda () (interactive) (message "Yes this is working")))))
+    (html-client            :script status
+                            :onselect (lambda () (interactive) (message "Yes this is working")))))
 ```
 
 ## Plugins
