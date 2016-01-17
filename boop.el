@@ -29,7 +29,7 @@
 ;;; Code:
 
 ;; TODO: Make the strategy stuff work
-;; TODO: Make functions a drop down custom?
+;; TODO: Make function to add/update config appropriately
 
 ;;;; Customs
 
@@ -280,7 +280,7 @@ Updating the result will also trigger any actions associated with that RESULT fo
     (when (and (not (eq current-result result)) action)
       (funcall (if (symbolp action)
                    (symbol-function action)
-               action) name))))
+                 action) name))))
 
 ;; Interactive Functions
 
@@ -327,6 +327,17 @@ Updating the result will also trigger any actions associated with that RESULT fo
     (setq boop-config-alist (assq-delete-all id boop-config-alist))
     (boop--sync-result-and-config)))
 
+(defun deboop-group (&optional group-id)
+  "Remove all boops from `boop-config-alist` matching GROUP-ID."
+  (interactive)
+  (let* ((grouped (--group-by (plist-get (cdr it) :group) boop-config-alist))
+         (groups (-flatten (list (-non-nil (mapcar 'car grouped)) "no-group")))
+         (group (or group-id (completing-read "Group: " groups))))
+    (let ((result (if (equal group "no-group")
+                      (-reduce '-concat (mapcar 'cdr (--filter (not (eq (car it) nil)) grouped)))
+                    (-reduce '-concat (mapcar 'cdr (--filter (not (eq (car it) (intern group))) grouped))))))
+      (setq boop-config-alist result))))
+
 (defun beep-boop ()
   "List all of the boops with `STATUS`."
   (interactive)
@@ -354,7 +365,6 @@ Updating the result will also trigger any actions associated with that RESULT fo
 (defun boop-stop ()
   "Stop the boop timer executing."
   (interactive)
-  (boop--clear-result-list)
   (if boop-timer
       (progn (cancel-timer boop-timer) (setq boop-timer nil))
     (error "You are not running BOOP - Call `boop-start` to begin")))
