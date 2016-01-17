@@ -28,8 +28,8 @@
 
 ;;; Code:
 
-;; TODO: Add in validation that `boop-plugins-dir` exists
 ;; TODO: Make the strategy stuff work
+;; TODO: Make functions a drop down custom?
 
 ;;;; Customs
 
@@ -134,6 +134,8 @@ single result.")
 
 (defun boop--get-plugin-scripts ()
   "Get a list of all of the executable scripts inside `boop-plugins-dir`."
+  (when (not (file-exists-p boop-plugins-dir))
+    (error "Plugins directory [%s] does not exist" boop-plugins-dir))
   (let ((files (directory-files boop-plugins-dir t)))
     (--filter (and (file-executable-p it) (file-regular-p it)) files)))
 
