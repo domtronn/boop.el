@@ -18,6 +18,8 @@ within **Emacs**, you can write plugin scripts and configure
 **Boop** to run these scripts periodically and print coloured dots
 in your `mode-line` to represent how that script returned.
 
+<img src="modeline.png" width="1200">
+
 ## Installation ##
 
 Clone this repository and add it to Emac's `load-path`. Then require
