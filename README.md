@@ -18,7 +18,7 @@ within **Emacs**, you can write plugin scripts and configure
 **Boop** to run these scripts periodically and print coloured dots
 in your `mode-line` to represent how that script returned.
 
-# Installation #
+## Installation ##
 
 Clone this repository and add it to Emac's `load-path`. Then require
 the file:
@@ -28,7 +28,57 @@ the file:
 (require 'boop)
 ```
 
-Then start boop by running 
+Then start boop by running
 ```
 (boop-start)
 ```
+
+## Defining a Config
+
+In order to start tracking things using **Boop** you will need to do one of two things,
+
+* Set `boop-config-alist`
+* Add to `boop-update-hook`
+
+#### `boop-config-alist`
+
+This variable defines items to monitor and the plugin scripts used to
+monitor, each entry in the `alist` is made of an `id` and a
+`plist`.
+
+The `plist` should contain a;
+
+* `:script` symbol which matches a **plugin** name,
+* `&optional :args` which is a list of string arguments to be passed into the `script`
+* `&optional :group` a group symbol to associate this config item with
+* `&optional :onselect` a function which will be evaluated when the boop is clicked
+
+For example,
+```elisp
+(setq boop-config-alist
+
+	  '((contract-validation	:script examplejenkins
+															:args ("my-jenkins.co.uk" "contract-validation")
+															:group backend
+															:onselect (lambda () (interactive) (browse-url "http://my-jenkins.co.uk/job/contract-validation")))
+
+		(service-js						:script examplejenkins
+															:args ("my-jenkins.co.uk" "service-fuji")
+															:group backend)
+
+		(service-router				:script examplejenkins
+															:args ("jenkins.connected-tv.tools.bbc.co.uk" "taf-router")
+															:group backend)
+
+		(html-client					:script status
+															:onselect (lambda () (interactive) (message "Yes this is working")))))
+```
+
+## Plugins
+
+Plugins are used to delegate the heavy lifting of the
+monitoring. These scripts should _echo_ or _print_ the result that
+matches the formats you define in `boop-format-alist`.
+
+By default, plugins are found in `~/.boopelplugins`, but this
+directory can be customised by setting the variable `boop-plugins-dir`.
