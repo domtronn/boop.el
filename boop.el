@@ -46,7 +46,9 @@
   :group 'convenience)
 
 (defcustom boop-default-format '(:symbol ?● :color "#ffcb13" :status "Unknown")
-  "The default format when a script echo result doesn't match a value in the `boop-format-alist`.")
+  "The default format when a script echo result doesn't match a value in the `boop-format-alist`."
+  :group 'boop
+  :type 'list)
 
 (defcustom boop-format-alist
   '((1 :symbol ?● :color "#63ca13" :status "Pass")
@@ -66,7 +68,9 @@ script, the `cdr` of this list is a plist with the following properties.
 :action - &optional A function to be called when this form status
           is changed to.
           e.g.  If a boop has a status of 1 then
-          changes to a status of 2 which has an action")
+          changes to a status of 2 which has an action"
+   :group 'boop
+   :type 'list)
 
 (defcustom boop-execution-strategy 'config
   "The startegy to use for executing plugins.
@@ -76,7 +80,9 @@ By default, with a value of `config` it will use
 a script in `boop-plugins-dir` with arguments.
 
 Setting this value to `all` will run all the plugins in
-`boop-plugins-dir` with no arguments.")
+`boop-plugins-dir` with no arguments."
+  :group 'boop
+  :type 'symbol)
 
 (defvar boop-update-hook nil
   "A list of hooks to run when `boop-update-info` runs.
@@ -89,9 +95,9 @@ elisp function, add that function to this list.")
   "The default directory to read plugins from.")
 
 (defvar boop-config-alist nil
-  "An alist of scripts and the arguments to run them with.
+  "The main alist of scripts and the arguments to run them with.
 
-Each entry Should be in the format (ID SCRIPT_NAME &optional ARGS)")
+Each entry Should be in the format (ID :script &optional ARGS)")
 
 (defvar boop-result-alist nil
   "This is an alist to track the results of plugins and boops.
@@ -109,17 +115,22 @@ It should be in the format that the elisp function `run-at-time` requires.
 
  e.g. 10 sec / 1 min"
   :group 'boop
-  :type 'string)
+  :type 'integer)
 
-(defcustom boop-sort-func nil
+(defvar boop-sort-func nil
   "Comparator function used to sort `boop-result-alist` when being formatted.
 
 When non-nil, `boop-sort-func` should be a comparator funciton
 which takes two arguments, When set to nil, no sorting is
 applied.")
 
-(defvar boop--format-func 'boop--format-result "The function to use to format results.")
 (defvar boop--shorten-id-func 'boop--shorten-substring "The function used to shorten an ID string.")
+(defvar boop--format-result-func 'boop--format-result "The function to use to format an individual result.")
+(defvar boop--format-results-func 'boop--format-results-sorted
+  "The function to use to format `boop-result-alist`.  This
+function should take a function as an argument which can format a
+single result.")
+
 ;;;; Functions
 
 (defun boop--get-plugin-scripts ()
@@ -135,11 +146,24 @@ applied.")
 ;; Formatting and Renderings the results
 
 (defun boop-format-results ()
+  "Apply the two customised format functions to create a propertized display string."
+  (funcall boop--format-results-func boop--format-result-func))
+
+;;;;;; multiple results
+
+(defun boop--format-results-sorted (f)
   "Format `boop-result-alist` into a propertized display string."
   (let ((sorted-result-alist
          (if boop-sort-func (--sort (funcall boop-sort-func (cdr it) (cdr other)) boop-result-alist)
            boop-result-alist)))
-    (mapconcat boop--format-func sorted-result-alist "")))
+    (mapconcat f sorted-result-alist "")))
+
+(defun boop--format-results-grouped-by-result (f)
+  "Format `boop-result-alist` into a propertized display string."
+  (let ((results (-group-by 'cdr boop-result-alist)))
+    (mapconcat (lambda (it) (format "[ %s]" (mapconcat f (cdr it) ""))) results " ")))
+
+;;;;;; individual results
 
 (defun boop--format-result-as-id (result)
   "Format an individual RESULT using its ID."
@@ -228,11 +252,11 @@ Updating the result will also trigger any actions associated with that RESULT fo
     (run-hooks 'boop-update-hook)
     (-map (lambda (config)
             (let* ((id (car config))
-                   (click (plist-get (cdr config) :onclick))
+                   (select (plist-get (cdr config) :onselect))
                    (script (cdr (assoc (plist-get (cdr config) :script) plugins)))
                    (args (mapconcat 'identity (plist-get (cdr config) :args) " ")))
-              ;; Set up the :onclick events
-              (when click (eval `(boop-defmodelinemap ,id click)))
+              ;; Set up the :onselect events
+              (when select (eval `(boop-defmodelinemap ,id select)))
               ;; Only boop the configs with scripts
               (when script
                 (async-start `(lambda () (shell-command-to-string (format "%s %s" ,script ,args)))
@@ -242,9 +266,9 @@ Updating the result will also trigger any actions associated with that RESULT fo
 (defun boop-flash-result-ids ()
   "Flashes the results based on their ID for 5 seconds."
   (interactive)
-  (let ((previous-format-func boop--format-func))
-    (setq boop--format-func 'boop--format-result-as-id)
-    (run-at-time "2 sec" nil `(lambda () (setq boop--format-func (quote ,previous-format-func))))))
+  (let ((previous-format-func boop--format-result-func))
+    (setq boop--format-result-func 'boop--format-result-as-id)
+    (run-at-time "2 sec" nil `(lambda () (setq boop--format-result-func (quote ,previous-format-func))))))
 
 (defun boop (id status)
   "Manually boop something and set ID to have a status of STATUS."
