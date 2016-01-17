@@ -248,6 +248,17 @@ You can override the symbol in FORM using SYMBOL-OVERRIDE."
     `(defvar ,id (let ((map (make-sparse-keymap)))
                    (define-key map [mode-line down-mouse-1] ,f) map))))
 
+
+(defun boop-install-mode-line ()
+  "Install the window number from `boop-mode' to the mode-line."
+  (let ((mode-line (default-value 'mode-line-format))
+        (result))
+    (while mode-line (push (pop mode-line) result))
+    (push '(:eval (boop-format-results)) result)
+    (setq-default mode-line-format (nreverse result)))
+  (force-mode-line-update t))
+
+
 ;; Updating the results
 
 (defun boop--clear-result-list () "Clear the result list." (setq boop-result-alist nil))
