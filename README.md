@@ -40,7 +40,7 @@ In order to start tracking things using **Boop** you will need to do one of two 
 * Set `boop-config-alist`
 * Add to `boop-update-hook`
 
-#### `boop-config-alist`
+### `boop-config-alist` ###
 
 This variable defines items to monitor and the plugin scripts used to
 monitor, each entry in the `alist` is made of an `id` and a
@@ -62,11 +62,7 @@ For example,
                             :onselect (lambda () (interactive) (browse-url "http://my-jenkins.co.uk/job/contract-validation")))
 
     (service-js             :script examplejenkins
-                            :args ("my-jenkins.co.uk" "service-fuji")
-                            :group backend)
-
-    (service-router         :script examplejenkins
-                            :args ("jenkins.connected-tv.tools.bbc.co.uk" "taf-router")
+                            :args ("my-jenkins.co.uk" "service-js")
                             :group backend)
 
     (html-client            :script status
