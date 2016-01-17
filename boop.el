@@ -123,9 +123,9 @@ When non-nil, `boop-sort-func` should be a comparator funciton
 which takes two arguments, When set to nil, no sorting is
 applied.")
 
-(defvar boop--shorten-id-func 'boop--shorten-substring "The function used to shorten an ID string.")
-(defvar boop--format-result-func 'boop--format-result "The function to use to format an individual result.")
-(defvar boop--format-results-func 'boop--format-results-sorted
+(defvar boop-shorten-id-func 'boop--shorten-substring "The function used to shorten an ID string.")
+(defvar boop-format-result-func 'boop--format-result "The function to use to format an individual result.")
+(defvar boop-format-results-func 'boop--format-results-sorted
   "The function to use to format `boop-result-alist`.  This
 function should take a function as an argument which can format a
 single result.")
@@ -146,7 +146,7 @@ single result.")
 
 (defun boop-format-results ()
   "Apply the two customised format functions to create a propertized display string."
-  (funcall boop--format-results-func boop--format-result-func))
+  (funcall boop-format-results-func boop-format-result-func))
 
 ;;;;;; multiple results
 
@@ -179,7 +179,7 @@ single result.")
                    boop-default-format))
          (map-symbol (intern (format "boop-%s-mode-line-map" result-id)))
          (string-id (concat (format "%s" result-id) (when group (format ":%s" group))))
-         (short-id (funcall boop--shorten-id-func string-id)))
+         (short-id (funcall boop-shorten-id-func string-id)))
     (format "[%s] " (boop--propertize form string-id (when (boundp map-symbol) map-symbol) short-id))))
 
 (defun boop--format-result (result-alist)
@@ -285,9 +285,9 @@ Updating the result will also trigger any actions associated with that RESULT fo
 (defun boop-flash-result-ids ()
   "Flashes the results based on their ID for 5 seconds."
   (interactive)
-  (let ((previous-format-func boop--format-result-func))
-    (setq boop--format-result-func 'boop--format-result-as-id)
-    (run-at-time "2 sec" nil `(lambda () (setq boop--format-result-func (quote ,previous-format-func))))))
+  (let ((previous-format-func boop-format-result-func))
+    (setq boop-format-result-func 'boop-format-result-as-id)
+    (run-at-time "2 sec" nil `(lambda () (setq boop-format-result-func (quote ,previous-format-func))))))
 
 (defun boop (id status &optional group)
   "Manually boop something and set ID to have a status of STATUS."
