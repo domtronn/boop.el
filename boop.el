@@ -324,6 +324,16 @@ Updating the result will also trigger any actions associated with that RESULT fo
     (setq boop-format-result-func 'boop--format-result-as-id)
     (run-at-time "2 sec" nil `(lambda () (setq boop-format-result-func (quote ,previous-format-func))))))
 
+(defun boop-cycle-format-results ()
+  "Cycle between the different format functions for the results."
+  (interactive)
+  (let ((format-funcs))
+    (mapatoms (lambda (sym) (when (string-match "boop--format-results-" (symbol-name sym))
+                         (setq format-funcs (cons sym format-funcs)))))
+    (let* ((current (-elem-index boop-format-results-func format-funcs))
+           (next (mod (+ current 1) (length format-funcs))))
+      (setq boop-format-results-func (nth next format-funcs)))))
+
 (defun boop (id status &optional group)
   "Manually boop something and set ID to have a status of STATUS."
   (if (assoc id boop-result-alist)
