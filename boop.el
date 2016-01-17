@@ -332,11 +332,14 @@ Updating the result will also trigger any actions associated with that RESULT fo
   (interactive)
   (let* ((grouped (--group-by (plist-get (cdr it) :group) boop-config-alist))
          (groups (-flatten (list (-non-nil (mapcar 'car grouped)) "no-group")))
-         (group (or group-id (completing-read "Group: " groups))))
-    (let ((result (if (equal group "no-group")
-                      (-reduce '-concat (mapcar 'cdr (--filter (not (eq (car it) nil)) grouped)))
-                    (-reduce '-concat (mapcar 'cdr (--filter (not (eq (car it) (intern group))) grouped))))))
-      (setq boop-config-alist result))))
+         (group (or group-id (intern (completing-read "Group: " groups)))))
+
+    (when (-contains? groups group)
+      (let ((result (if (equal group "no-group")
+                        (-reduce '-concat (mapcar 'cdr (--filter (not (eq (car it) nil)) grouped)))
+                      (-reduce '-concat (mapcar 'cdr (--filter (not (eq (car it) group)) grouped))))))
+        (setq boop-config-alist result)
+        (boop--sync-result-and-config)))))
 
 (defun beep-boop ()
   "List all of the boops with `STATUS`."
