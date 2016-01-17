@@ -71,6 +71,17 @@ For example,
                             :onselect (lambda () (interactive) (message "Yes this is working")))))
 ```
 
+### `boop-update-hook`
+
+This hook is run whenever `boop-update-info` is called. When the hooks run, it is expected that they will end by calling the `boop` function.
+
+For example,
+```elisp
+(add-hook 'boop-update-hook
+;;                  BOOP ID                               PASS STATUS   UNKNOWN STATUS
+ '(lambda () (boop 'project-open (if (boundp 'project-id) 1             2))))
+```
+
 ## Plugins
 
 Plugins are used to delegate the heavy lifting of the
