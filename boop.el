@@ -30,8 +30,6 @@
 
 ;; TODO: Add in validation that `boop-plugins-dir` exists
 ;; TODO: Make the strategy stuff work
-;; TODO: Add in Grouping of configs?
-;; TODO: Add in click behaviour
 
 ;;;; Customs
 
@@ -164,6 +162,11 @@ single result.")
   (let ((results (--group-by (plist-get (cdr it) :result) boop-result-alist)))
     (mapconcat (lambda (it) (format "[ %s]" (mapconcat f (cdr it) ""))) results " ")))
 
+(defun boop--format-results-grouped-by-group (f)
+  "Format `boop-result-alist` into a propertized display string."
+  (let ((results (--group-by (plist-get (cdr it) :group) boop-result-alist)))
+    (mapconcat (lambda (it) (format "[ %s]" (mapconcat f (cdr it) ""))) results " ")))
+
 ;;;;;; individual results
 
 (defun boop--format-result-as-id (result-alist)
@@ -175,7 +178,7 @@ single result.")
          (form (or (cdr (assoc result boop-format-alist))
                    boop-default-format))
          (map-symbol (intern (format "boop-%s-mode-line-map" result-id)))
-         (string-id (concat (format "%s" result-id) (when group (format " - %s" group))))
+         (string-id (concat (format "%s" result-id) (when group (format ":%s" group))))
          (short-id (funcall boop--shorten-id-func string-id)))
     (format "[%s] " (boop--propertize form string-id (when (boundp map-symbol) map-symbol) short-id))))
 
@@ -188,7 +191,7 @@ single result.")
          (form (or (cdr (assoc result boop-format-alist))
                    boop-default-format))
          (map-symbol (intern (format "boop-%s-mode-line-map" result-id)))
-         (string-id (concat (format "%s" result-id) (when group (format " - %s" group)))))
+         (string-id (concat (format "%s" result-id) (when group (format ":%s" group)))))
     (boop--propertize form string-id (when (boundp map-symbol) map-symbol))))
 
 (defun boop--propertize (form &optional help-echo map symbol-override)
