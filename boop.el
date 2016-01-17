@@ -126,20 +126,13 @@ When non-nil, `boop-sort-func` should be a comparator funciton
 which takes two arguments, When set to nil, no sorting is
 applied.")
 
-(defcustom boop-shorten-id-func 'boop--shorten-substring
-  "The function used to shorten an ID string.
-This is only used when displaying results as shortened ids, see
-`boop-format-result-func`"
-  :group 'boop
-  :type '(radio
-          (const :tag "Display a substring    e.g.  [proj]" boop--shorten-substring)
-          (const :tag "Display split          e.g.  [p-n-a]" boop--shorten-delim)))
-(defcustom boop-format-result-func 'boop--format-result
+(defcustom boop-format-result-func 'boop--format-result-as-symbol
   "The function to use to format an individual result."
   :group 'boop
   :type '(radio
-          (const :tag "Display symbol         e.g.  ●" boop--format-result)
-          (const :tag "Display shortened id   e.g.  [name]" boop--format-result-as-id)))
+          (const :tag "Display symbol         e.g.  ●" boop--format-result-as-symbol)
+          (const :tag "Display substring      e.g.  [my-var]" boop--format-result-as-substring)
+          (const :tag "Display shortened id   e.g.  [m-v]" boop--format-result-as-id)))
 
 (defcustom boop-format-results-func 'boop--format-results-sorted
   "The function to use to format `boop-result-alist`.
@@ -192,30 +185,39 @@ single result."
 
 ;;;;;; individual results
 
-(defun boop--format-result-as-id (result-alist)
-  "Format an individual RESULT-ALIST using its ID."
+(defun boop--format-result (f &optional shorten-f)
   (let* ((result-id (car result-alist))
          (result    (plist-get (cdr result-alist) :result))
          (group     (plist-get (cdr result-alist) :group))
 
-         (form (or (cdr (assoc result boop-format-alist))
-                   boop-default-format))
+         (form (or (cdr (assoc result boop-format-alist)) boop-default-format))
          (map-symbol (intern (format "boop-%s-mode-line-map" result-id)))
          (string-id (concat (format "%s" result-id) (when group (format ":%s" group))))
-         (short-id (funcall boop-shorten-id-func string-id)))
-    (format "[%s] " (boop--propertize form string-id (when (boundp map-symbol) map-symbol) short-id))))
+         (short-id (when shorten-f (funcall shorten-f string-id))))
 
-(defun boop--format-result (result-alist)
+    (funcall f form string-id (and (boundp map-symbol) map-symbol) short-id)))
+
+(defun boop--format-result-as-is (result-alist)
+  "Format an individual RESULT-ALIST using its ID."
+  (boop--format-result
+   (lambda (form id map override) (format "[%s] " (boop--propertize form id map override)))
+   'format))
+
+(defun boop--format-result-as-substring (result-alist)
+  "Format an individual RESULT-ALIST using its ID."
+  (boop--format-result
+   (lambda (form id map override) (format "[%s] " (boop--propertize form id map override)))
+   'boop--shorten-substring))
+
+(defun boop--format-result-as-id (result-alist)
+  "Format an individual RESULT-ALIST using its ID."
+  (boop--format-result
+   (lambda (form id map override) (format "[%s] " (boop--propertize form id map override)))
+   'boop--shorten-delim))
+
+(defun boop--format-result-as-symbol (result-alist)
   "Format an individual RESULT-ALIST normally."
-  (let* ((result-id (car result-alist))
-         (result    (plist-get (cdr result-alist) :result))
-         (group     (plist-get (cdr result-alist) :group))
-
-         (form (or (cdr (assoc result boop-format-alist))
-                   boop-default-format))
-         (map-symbol (intern (format "boop-%s-mode-line-map" result-id)))
-         (string-id (concat (format "%s" result-id) (when group (format ":%s" group)))))
-    (boop--propertize form string-id (when (boundp map-symbol) map-symbol))))
+  (boop--format-result (lambda (form id map &rest args) (boop--propertize form id map))))
 
 (defun boop--propertize (form &optional help-echo map symbol-override)
   "Propertizes FORM with optional HELP-ECHO string.
@@ -242,6 +244,35 @@ You can override the symbol in FORM using SYMBOL-OVERRIDE."
   "Formats an ID string to be the substring of up to 5 characters."
   (downcase (mapconcat (lambda (s) (substring s 0 1)) (s-split-words id) "-")))
 
+;; Changing Formats
+
+(defun boop-flash-result-ids ()
+  "Flashes the results based on their ID for 5 seconds."
+  (interactive)
+  (let ((previous-format-func boop-format-result-func))
+    (setq boop-format-result-func 'boop--format-result-as-is)
+    (run-at-time "2 sec" nil `(lambda () (setq boop-format-result-func (quote ,previous-format-func))))))
+
+(defun boop--cycle-func (pattern var)
+  "Cycle through functions that match PATTERN and assign them to VAR."
+  (let ((format-funcs))
+    (mapatoms (lambda (sym) (when (string-match pattern (symbol-name sym))
+                         (setq format-funcs (cons sym format-funcs)))))
+    (message "Format-Funcs: %s" format-funcs)
+    (let* ((current (-elem-index var format-funcs))
+           (next (mod (+ current 1) (length format-funcs))))
+      (nth next format-funcs))))
+
+(defun boop-cycle-result-formats ()
+  "Cycle between the different format functions for individual results."
+  (interactive)
+  (setq boop-format-result-func (boop--cycle-func "boop--format-result-" boop-format-result-func)))
+
+(defun boop-cycle-results-formats ()
+  "Cycle between the different format functions for the results."
+  (interactive)
+  (setq boop-format-results-func (boop--cycle-func "boop--format-results-" boop-format-results-func)))
+
 ;; Click bindings
 
 (defmacro boop-defmodelinemap (id f)
@@ -249,7 +280,6 @@ You can override the symbol in FORM using SYMBOL-OVERRIDE."
   (let ((id (intern (format "boop-%s-mode-line-map" id ))))
     `(defvar ,id (let ((map (make-sparse-keymap)))
                    (define-key map [mode-line down-mouse-1] ,f) map))))
-
 
 (defun boop-install-mode-line ()
   "Install the window number from `boop-mode' to the mode-line."
@@ -259,7 +289,6 @@ You can override the symbol in FORM using SYMBOL-OVERRIDE."
     (push '(:eval (boop-format-results)) result)
     (setq-default mode-line-format (nreverse result)))
   (force-mode-line-update t))
-
 
 ;; Updating the results
 
@@ -316,23 +345,6 @@ Updating the result will also trigger any actions associated with that RESULT fo
                 (async-start `(lambda () (shell-command-to-string (format "%s %s" ,script ,args)))
                              `(lambda (result) (boop--handle-result (quote ,id) (string-to-number result) (quote ,group)))))))
           boop-config-alist)))
-
-(defun boop-flash-result-ids ()
-  "Flashes the results based on their ID for 5 seconds."
-  (interactive)
-  (let ((previous-format-func boop-format-result-func))
-    (setq boop-format-result-func 'boop--format-result-as-id)
-    (run-at-time "2 sec" nil `(lambda () (setq boop-format-result-func (quote ,previous-format-func))))))
-
-(defun boop-cycle-format-results ()
-  "Cycle between the different format functions for the results."
-  (interactive)
-  (let ((format-funcs))
-    (mapatoms (lambda (sym) (when (string-match "boop--format-results-" (symbol-name sym))
-                         (setq format-funcs (cons sym format-funcs)))))
-    (let* ((current (-elem-index boop-format-results-func format-funcs))
-           (next (mod (+ current 1) (length format-funcs))))
-      (setq boop-format-results-func (nth next format-funcs)))))
 
 (defun boop (id status &optional group)
   "Manually boop something and set ID to have a status of STATUS."
