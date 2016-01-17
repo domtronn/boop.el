@@ -46,7 +46,10 @@
 (defcustom boop-default-format '(:symbol ?● :color "#ffcb13" :status "Unknown")
   "The default format when a script echo result doesn't match a value in the `boop-format-alist`."
   :group 'boop
-  :type 'list)
+  :type '(plist :key-type (choice (const :tag "Must be a Character" :symbol )
+                                  (const :tag "Must be a HEX String" :color  )
+                                  (const :tag "Must be a Status String" :status )
+                                  (const :tag "Must be a lambda function" :action ))))
 
 (defcustom boop-format-alist
   '((1 :symbol ?● :color "#63ca13" :status "Passing" :action (lambda (name &rest args) (message "[%s] is back to Passing" name)))
@@ -68,7 +71,11 @@ script, the `cdr` of this list is a plist with the following properties.
           e.g.  If a boop has a status of 1 then
           changes to a status of 2 which has an action"
    :group 'boop
-   :type 'list)
+   :type '(alist :key-type integer
+                 :value-type (plist :key-type (choice (const :tag "Must be a Character" :symbol )
+                                                      (const :tag "Must be a HEX String" :color  )
+                                                      (const :tag "Must be a Status String" :status )
+                                                      (const :tag "Must be a lambda function" :action )))))
 
 (defcustom boop-execution-strategy 'config
   "The startegy to use for executing plugins.
@@ -83,7 +90,7 @@ Setting this value to `all` will run all the plugins in
   :type 'symbol)
 
 (defvar boop-update-hook nil
-  "A list of hooks to run when `boop-update-info` runs.
+  "A list of hooks to run when `boop-update` runs.
 
 This allows you to programmatically create/update boops on an
 interval.  If you have anything you want to monitor using an
@@ -108,11 +115,7 @@ results synchronized when performing asynchronous actions")
   "The id of the boop timer so that it can be canceled.")
 
 (defcustom boop-interval 10
-  "The interval at which to run `boop-update`.
-
-It should be in the format that the elisp function `run-at-time` requires.
-
- e.g. 10 sec / 1 min"
+  "The interval (in seconds) at which to run `boop-update`."
   :group 'boop
   :type 'integer)
 
@@ -123,12 +126,29 @@ When non-nil, `boop-sort-func` should be a comparator funciton
 which takes two arguments, When set to nil, no sorting is
 applied.")
 
-(defvar boop-shorten-id-func 'boop--shorten-substring "The function used to shorten an ID string.")
-(defvar boop-format-result-func 'boop--format-result "The function to use to format an individual result.")
-(defvar boop-format-results-func 'boop--format-results-sorted
+(defcustom boop-shorten-id-func 'boop--shorten-substring
+  "The function used to shorten an ID string.
+This is only used when displaying results as shortened ids, see
+`boop-format-result-func`"
+  :group 'boop
+  :type '(radio
+          (const :tag "Display a substring    e.g.  [proj]" boop--shorten-substring)
+          (const :tag "Display split          e.g.  [p-n-a]" boop--shorten-delim)))
+(defcustom boop-format-result-func 'boop--format-result
+  "The function to use to format an individual result."
+  :group 'boop
+  :type '(radio
+          (const :tag "Display symbol         e.g.  ●" boop--format-result)
+          (const :tag "Display shortened id   e.g.  [name]" boop--format-result-as-id)))
+(defcustom boop-format-results-func 'boop--format-results-sorted
   "The function to use to format `boop-result-alist`.  This
 function should take a function as an argument which can format a
-single result.")
+single result."
+  :group 'boop
+  :type '(radio
+          (const :tag "Display results sorted" boop--format-results-sorted)
+          (const :tag "Display results grouped by result" boop--format-results-grouped-by-result)
+          (const :tag "Display results grouped by group tag" boop--format-results-grouped-by-group)))
 
 ;;;; Functions
 
@@ -264,7 +284,7 @@ Updating the result will also trigger any actions associated with that RESULT fo
 
 ;; Interactive Functions
 
-(defun boop-update-info ()
+(defun boop-update ()
   "Execute all of the plugins and return a list of the results."
   (interactive)
   (let* ((plugins (boop--get-plugin-alist)))
@@ -327,7 +347,7 @@ Updating the result will also trigger any actions associated with that RESULT fo
   "Start the boop timer executing your plugins."
   (interactive)
   (if (not boop-timer)
-      (setq boop-timer (run-at-time "1 sec" boop-interval 'boop-update-info))
+      (setq boop-timer (run-at-time "1 sec" boop-interval 'boop-update))
     (error "You are already running BOOP - Call `boop-stop` to cancel")))
 
 ;;;###autoload
