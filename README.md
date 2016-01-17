@@ -56,17 +56,18 @@ The `plist` should contain a;
 For example,
 ```elisp
 (setq boop-config-alist
+    ;; ID                   PLIST
     '((contract-validation  :script examplejenkins
                             :args ("my-jenkins.co.uk" "contract-validation")
                             :group backend
                             :onselect (lambda () (interactive) 
 										(browse-url "http://my-jenkins.co.uk/job/contract-validation")))
 
-    (service-js             :script examplejenkins
+     (service-js             :script examplejenkins
                             :args ("my-jenkins.co.uk" "service-js")
                             :group backend)
 
-    (html-client            :script status
+     (html-client            :script status
                             :onselect (lambda () (interactive) (message "Yes this is working")))))
 ```
 
