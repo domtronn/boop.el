@@ -3,20 +3,20 @@
 # boop.el #
 
 **Boop** Is a tool designed to radiate state unobtrusively in the
-`mode-line` _(or wherever you want it)_ whilst you're working.
+`mode-line`.
 
 Very often you see dashboards littered across the floors of start ups
-and companies a like designed to track the state of a service, usually
-**red**, **green**, **yellow** or **blue** widgets which tell you
-something is either _broken_ or _stable_ or some other state.
+and companies a like designed to monitor the state of something,
+usually with **red**, **green**, **yellow** or **blue** widgets that
+tell you something is either _broken_ or _stable_ etc.
 
-The problem is, these dashboards often get saturated and all the loud
-colours become noise.
+The problem is, these dashboards often get over-saturated with widgets
+and all the colours just become noise.
 
 **Boop** is designed to replicate the purpose of a dashboard from
-within **Emacs**, you can write plugin scripts and configure
-**Boop** to run these scripts periodically and print coloured dots
-in your `mode-line` to represent how that script returned.
+within **Emacs**. You can configure **Boop** to run scripts
+_(plugins)_ periodically and convert the results into coloured dots in
+your `mode-line`.
 
 <img src="powerline.png" width="1200">
 <img src="modeline.png" width="1200">
@@ -38,15 +38,15 @@ Then start boop by running
 
 ## Defining a Config
 
-In order to start tracking things using **Boop** you will need to do one of two things,
+In order to start monitoring things using **Boop** you will need to do one of two things,
 
-* Set `boop-config-alist`
+* Set/Add to `boop-config-alist`
 * Add to `boop-update-hook`
 
 ### `boop-config-alist` ###
 
 This variable defines items to monitor and the plugin scripts used to
-monitor, each entry in the `alist` is made of an `id` and a
+monitor them, each entry in the `alist` is made of an `id` and a
 `plist`.
 
 The `plist` should contain a;
@@ -66,11 +66,11 @@ For example,
                             :onselect (lambda () (interactive) 
 										(browse-url "http://my-jenkins.co.uk/job/contract-validation")))
 
-     (service-js             :script examplejenkins
+     (service-js            :script examplejenkins
                             :args ("my-jenkins.co.uk" "service-js")
                             :group backend)
 
-     (html-client            :script status
+     (html-client           :script status
                             :onselect (lambda () (interactive) (message "Yes this is working")))))
 ```
 
@@ -89,7 +89,10 @@ For example,
 
 Plugins are used to delegate the heavy lifting of the
 monitoring. These scripts should _echo_ or _print_ the result that
-matches the formats you define in `boop-format-alist`.
+matches the formats defined in `boop-format-alist`.
+
+You can customise `boop-format-alist` to cover whatever return types
+you need.
 
 By default, plugins are found in `~/.boopelplugins`, but this
 directory can be customised by setting the variable `boop-plugins-dir`.
