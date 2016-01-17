@@ -51,8 +51,8 @@
   :type 'list)
 
 (defcustom boop-format-alist
-  '((1 :symbol ?● :color "#63ca13" :status "Pass")
-    (0 :symbol ?● :color "#c64512" :status "Fail")
+  '((1 :symbol ?● :color "#63ca13" :status "Passing" :action (lambda (name &rest args) (message "[%s] is back to Passing" name)))
+    (0 :symbol ?● :color "#c64512" :status "Failing" :action (lambda (name &rest args) (beep) (message-box "[%s] has Failed" name)))
     (3 :symbol ?● :color "#23a2fb" :status "Building"))
    "An alist to map the echo results of the plugins to a display format.
 
@@ -94,6 +94,7 @@ elisp function, add that function to this list.")
 (defvar boop-plugins-dir (expand-file-name (concat (getenv "HOME") "/.boopelplugins"))
   "The default directory to read plugins from.")
 
+(defvar boop-configs nil "A list of config boop groups")
 (defvar boop-config-alist nil
   "The main alist of scripts and the arguments to run them with.
 
@@ -154,33 +155,41 @@ single result.")
 (defun boop--format-results-sorted (f)
   "Format `boop-result-alist` into a propertized display string."
   (let ((sorted-result-alist
-         (if boop-sort-func (--sort (funcall boop-sort-func (cdr it) (cdr other)) boop-result-alist)
+         (if boop-sort-func (--sort (funcall boop-sort-func (plist-get (cdr it) :result) (cdr other)) boop-result-alist)
            boop-result-alist)))
     (mapconcat f sorted-result-alist "")))
 
 (defun boop--format-results-grouped-by-result (f)
   "Format `boop-result-alist` into a propertized display string."
-  (let ((results (-group-by 'cdr boop-result-alist)))
+  (let ((results (--group-by (plist-get (cdr it) :result) boop-result-alist)))
     (mapconcat (lambda (it) (format "[ %s]" (mapconcat f (cdr it) ""))) results " ")))
 
 ;;;;;; individual results
 
-(defun boop--format-result-as-id (result)
+(defun boop--format-result-as-id (result-alist)
   "Format an individual RESULT using its ID."
-  (let* ((form (or (cdr (assoc (cdr result) boop-format-alist))
-                   boop-default-format))
-         (map-symbol (intern (format "boop-%s-mode-line-map" (car result))))
-         (string-id (format "%s" (car result)))
-         (short-id (funcall boop--shorten-id-func string-id)))
+  (let* ((result-id (car result-alist))
+         (result    (plist-get (cdr result-alist) :result))
+         (group     (plist-get (cdr result-alist) :group))
 
+         (form (or (cdr (assoc result boop-format-alist))
+                   boop-default-format))
+         (map-symbol (intern (format "boop-%s-mode-line-map" result-id)))
+         (string-id (concat (format "%s" result-id) (when group (format " - %s" group))))
+         (short-id (funcall boop--shorten-id-func string-id)))
     (format "[%s] " (boop--propertize form string-id (when (boundp map-symbol) map-symbol) short-id))))
 
-(defun boop--format-result (result)
+(defun boop--format-result (result-alist)
   "Format an individual RESULT normally."
-  (let ((form (or (cdr (assoc (cdr result) boop-format-alist))
-                  boop-default-format))
-        (map-symbol (intern (format "boop-%s-mode-line-map" (car result)))))
-    (boop--propertize form (format "%s" (car result)) (when (boundp map-symbol) map-symbol))))
+  (let* ((result-id (car result-alist))
+         (result    (plist-get (cdr result-alist) :result))
+         (group     (plist-get (cdr result-alist) :group))
+
+         (form (or (cdr (assoc result boop-format-alist))
+                   boop-default-format))
+         (map-symbol (intern (format "boop-%s-mode-line-map" result-id)))
+         (string-id (concat (format "%s" result-id) (when group (format " - %s" group)))))
+    (boop--propertize form string-id (when (boundp map-symbol) map-symbol))))
 
 (defun boop--propertize (form &optional help-echo map symbol-override)
   "Propertizes FORM with optional HELP-ECHO string.
@@ -196,14 +205,6 @@ You can override the symbol in FORM using SYMBOL-OVERRIDE."
                 'local-map (eval map)
                 'pointer (when map 'hand))))
 
-;; Click bindings
-
-(defmacro boop-defmodelinemap (id f)
-  "Macro to create a mode-line-map-by-id."
-  (let ((id (intern (format "boop-%s-mode-line-map" id ))))
-    `(defvar ,id (let ((map (make-sparse-keymap)))
-                   (define-key map [mode-line down-mouse-1] ,f) map))))
-
 ;; Shorten functions
 
 (defun boop--shorten-substring (id)
@@ -214,6 +215,14 @@ You can override the symbol in FORM using SYMBOL-OVERRIDE."
   "Formats an ID string to be the substring of up to 5 characters."
   (downcase (mapconcat (lambda (s) (substring s 0 1)) (s-split-words id) "-")))
 
+;; Click bindings
+
+(defmacro boop-defmodelinemap (id f)
+  "Macro to create a mode-line-map-by-id."
+  (let ((id (intern (format "boop-%s-mode-line-map" id ))))
+    `(defvar ,id (let ((map (make-sparse-keymap)))
+                   (define-key map [mode-line down-mouse-1] ,f) map))))
+
 ;; Updating the results
 
 (defun boop--clear-result-list () "Clear the result list." (setq boop-result-alist nil))
@@ -221,22 +230,28 @@ You can override the symbol in FORM using SYMBOL-OVERRIDE."
   "Synchronizes the result alist to contain only items in the config alist."
   (setq boop-result-alist (--filter (assoc (car it) boop-config-alist) boop-result-alist)))
 
-(defun boop--handle-result (id result)
-  "Update the resut with ID by handling the RESULT of the async `shell-command-to-string`."
-  (if (assoc id boop-result-alist)
-      (boop--update-result id result)
-    (setq boop-result-alist (append (list (cons id result)) boop-result-alist))))
+(defun boop--handle-result (id result &optional group)
+  "Update the resut with ID by handling the RESULT of the async `shell-command-to-string`.
 
-(defun boop--update-result (id result)
+Also sets the results GROUP when non-nil"
+  (if (assoc id boop-result-alist)
+      (boop--update-result id result group)
+    (setq boop-result-alist (append (list (list id :result result :group group)) boop-result-alist))))
+
+(defun boop--update-result (id result &optional group)
   "Update the boop with ID to have the new RESULT.
 
 Updating the result will also trigger any actions associated with that RESULT form."
-  (let* ((current-result (cdr (assoc id boop-result-alist)))
+  (let* ((result-plist   (cdr (assoc id boop-result-alist)))
+         (current-result (plist-get result-plist :result))
+
          (form (or (cdr (assoc result boop-format-alist))
                    boop-default-format))
-         (name (car (assoc id boop-result-alist)))
+         (name   (car (assoc id boop-result-alist)))
          (action (plist-get form :action)))
-    (setf (cdr (assoc id boop-result-alist)) result)
+
+    (plist-put (cdr (assoc id boop-result-alist)) :result result)
+    (plist-put (cdr (assoc id boop-result-alist)) :group group)
     (when (and (not (eq current-result result)) action)
       (funcall (if (symbolp action)
                    (symbol-function action)
@@ -251,16 +266,17 @@ Updating the result will also trigger any actions associated with that RESULT fo
     (boop--sync-result-and-config)
     (run-hooks 'boop-update-hook)
     (-map (lambda (config)
-            (let* ((id (car config))
-                   (select (plist-get (cdr config) :onselect))
+            (let* ((id     (car config))
                    (script (cdr (assoc (plist-get (cdr config) :script) plugins)))
-                   (args (mapconcat 'identity (plist-get (cdr config) :args) " ")))
+                   (args   (mapconcat 'identity (plist-get (cdr config) :args) " "))
+                   (select (plist-get (cdr config) :onselect))
+                   (group  (plist-get (cdr config) :group)))
               ;; Set up the :onselect events
               (when select (eval `(boop-defmodelinemap ,id select)))
               ;; Only boop the configs with scripts
               (when script
                 (async-start `(lambda () (shell-command-to-string (format "%s %s" ,script ,args)))
-                             `(lambda (result) (boop--handle-result (quote ,id) (string-to-number result)))))))
+                             `(lambda (result) (boop--handle-result (quote ,id) (string-to-number result) (quote ,group)))))))
           boop-config-alist)))
 
 (defun boop-flash-result-ids ()
@@ -270,14 +286,14 @@ Updating the result will also trigger any actions associated with that RESULT fo
     (setq boop--format-result-func 'boop--format-result-as-id)
     (run-at-time "2 sec" nil `(lambda () (setq boop--format-result-func (quote ,previous-format-func))))))
 
-(defun boop (id status)
+(defun boop (id status &optional group)
   "Manually boop something and set ID to have a status of STATUS."
   (if (assoc id boop-result-alist)
       (boop--update-result id status)
     (progn
       ;; Add the new boop to the config and results
-      (setq boop-config-alist (append (list (list id)) boop-config-alist))
-      (setq boop-result-alist (append (list (cons id status)) boop-result-alist)))))
+      (setq boop-config-alist (append (list (list id :group group)) boop-config-alist))
+      (setq boop-result-alist (append (list (list id :result status :group group)) boop-result-alist)))))
 
 (defun deboop (&optional id)
   "Remove boop with ID from `boop-config-alist` and sync with the results."
