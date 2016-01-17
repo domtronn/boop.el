@@ -99,7 +99,7 @@ elisp function, add that function to this list.")
 (defvar boop-plugins-dir (expand-file-name (concat (getenv "HOME") "/.boopelplugins"))
   "The default directory to read plugins from.")
 
-(defvar boop-configs nil "A list of config boop groups")
+(defvar boop-configs nil "A list of config boop groups.")
 (defvar boop-config-alist nil
   "The main alist of scripts and the arguments to run them with.
 
@@ -140,9 +140,10 @@ This is only used when displaying results as shortened ids, see
   :type '(radio
           (const :tag "Display symbol         e.g.  ●" boop--format-result)
           (const :tag "Display shortened id   e.g.  [name]" boop--format-result-as-id)))
+
 (defcustom boop-format-results-func 'boop--format-results-sorted
-  "The function to use to format `boop-result-alist`.  This
-function should take a function as an argument which can format a
+  "The function to use to format `boop-result-alist`.
+This function should take a function as an argument which can format a
 single result."
   :group 'boop
   :type '(radio
@@ -173,26 +174,26 @@ single result."
 ;;;;;; multiple results
 
 (defun boop--format-results-sorted (f)
-  "Format `boop-result-alist` into a propertized display string."
+  "Format `boop-result-alist` into a propertized display string using F."
   (let ((sorted-result-alist
          (if boop-sort-func (--sort (funcall boop-sort-func (plist-get (cdr it) :result) (cdr other)) boop-result-alist)
            boop-result-alist)))
     (mapconcat f sorted-result-alist "")))
 
 (defun boop--format-results-grouped-by-result (f)
-  "Format `boop-result-alist` into a propertized display string."
+  "Format `boop-result-alist` into a propertized display string using F."
   (let ((results (--group-by (plist-get (cdr it) :result) boop-result-alist)))
     (mapconcat (lambda (it) (format "[ %s]" (mapconcat f (cdr it) ""))) results " ")))
 
 (defun boop--format-results-grouped-by-group (f)
-  "Format `boop-result-alist` into a propertized display string."
+  "Format `boop-result-alist` into a propertized display string using F."
   (let ((results (--group-by (plist-get (cdr it) :group) boop-result-alist)))
     (mapconcat (lambda (it) (format "[ %s]" (mapconcat f (cdr it) ""))) results " ")))
 
 ;;;;;; individual results
 
 (defun boop--format-result-as-id (result-alist)
-  "Format an individual RESULT using its ID."
+  "Format an individual RESULT-ALIST using its ID."
   (let* ((result-id (car result-alist))
          (result    (plist-get (cdr result-alist) :result))
          (group     (plist-get (cdr result-alist) :group))
@@ -205,7 +206,7 @@ single result."
     (format "[%s] " (boop--propertize form string-id (when (boundp map-symbol) map-symbol) short-id))))
 
 (defun boop--format-result (result-alist)
-  "Format an individual RESULT normally."
+  "Format an individual RESULT-ALIST normally."
   (let* ((result-id (car result-alist))
          (result    (plist-get (cdr result-alist) :result))
          (group     (plist-get (cdr result-alist) :group))
@@ -221,6 +222,7 @@ single result."
 
 FORM should be a plist containing, at minimum, a :symbol to render.
 See `boop-format-alist` for examples of what these FORMs should look like.
+Providing a MAP will give that boop clickable effects.
 You can override the symbol in FORM using SYMBOL-OVERRIDE."
   (let ((symbol (plist-get form :symbol))
         (colour (plist-get form :color)))
@@ -243,7 +245,7 @@ You can override the symbol in FORM using SYMBOL-OVERRIDE."
 ;; Click bindings
 
 (defmacro boop-defmodelinemap (id f)
-  "Macro to create a mode-line-map-by-id."
+  "Macro to create a mode-line-map-by-id for ID with click action of F."
   (let ((id (intern (format "boop-%s-mode-line-map" id ))))
     `(defvar ,id (let ((map (make-sparse-keymap)))
                    (define-key map [mode-line down-mouse-1] ,f) map))))
