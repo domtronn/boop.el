@@ -59,7 +59,8 @@ For example,
     '((contract-validation  :script examplejenkins
                             :args ("my-jenkins.co.uk" "contract-validation")
                             :group backend
-                            :onselect (lambda () (interactive) (browse-url "http://my-jenkins.co.uk/job/contract-validation")))
+                            :onselect (lambda () (interactive) 
+										(browse-url "http://my-jenkins.co.uk/job/contract-validation")))
 
     (service-js             :script examplejenkins
                             :args ("my-jenkins.co.uk" "service-js")
