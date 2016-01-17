@@ -308,7 +308,7 @@ Updating the result will also trigger any actions associated with that RESULT fo
   "Flashes the results based on their ID for 5 seconds."
   (interactive)
   (let ((previous-format-func boop-format-result-func))
-    (setq boop-format-result-func 'boop-format-result-as-id)
+    (setq boop-format-result-func 'boop--format-result-as-id)
     (run-at-time "2 sec" nil `(lambda () (setq boop-format-result-func (quote ,previous-format-func))))))
 
 (defun boop (id status &optional group)
