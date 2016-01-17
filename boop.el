@@ -360,8 +360,8 @@ Updating the result will also trigger any actions associated with that RESULT fo
          (with-status
           (--map (format "%s" (car it))
                  (if (equal (car status) (plist-get boop-default-format :status))
-                     (--filter (not (-contains? (-map 'car boop-format-alist) (cdr it))) boop-result-alist)
-                     (--filter (equal (cdr it) (cdr status)) boop-result-alist)))))
+                     (--filter (not (-contains? (-map 'car boop-format-alist) (plist-get (cdr it) :result))) boop-result-alist)
+                   (--filter (equal (plist-get (cdr it) :result) (cdr status)) boop-result-alist)))))
     (if with-status
         (message "%s Boops: %s" (car status) (mapconcat (lambda (it) (format "[ %s ]" it)) with-status " "))
       (message "No Boops have a status of [%s]" (car status)))))
