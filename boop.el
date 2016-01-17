@@ -314,7 +314,7 @@ Updating the result will also trigger any actions associated with that RESULT fo
 (defun boop (id status &optional group)
   "Manually boop something and set ID to have a status of STATUS."
   (if (assoc id boop-result-alist)
-      (boop--update-result id status)
+      (boop--update-result id status group)
     (progn
       ;; Add the new boop to the config and results
       (setq boop-config-alist (append (list (list id :group group)) boop-config-alist))
