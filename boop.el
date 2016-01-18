@@ -377,11 +377,14 @@ Updating the result will also trigger any actions associated with that RESULT fo
                       (-reduce '-concat (mapcar 'cdr (--filter (not (eq (car it) group)) grouped))))))
         (setq boop-config-alist result)))))
 
-(defun beep-boop ()
+(defun beep-boop (&optional prefix)
   "List all of the boops with `STATUS`."
-  (interactive)
-  (let* ((status-alist (append (--map (cons (plist-get (cdr it) :status) (car it)) boop-format-alist)
-                               (list (list (plist-get boop-default-format :status)))))
+  (interactive "P")
+  (let* ((status-alist
+          (if prefix
+              (--map (cons (plist-get (cdr it) :status) (car it)) boop-format-alist)
+            (append (--map (cons (plist-get (cdr it) :status) (car it)) boop-format-alist)
+                    (list (list (plist-get boop-default-format :status))))))
          (status (assoc (completing-read "Status: " status-alist) status-alist))
          (with-status
           (--map (format "%s" (car it))
@@ -389,7 +392,11 @@ Updating the result will also trigger any actions associated with that RESULT fo
                      (--filter (not (-contains? (-map 'car boop-format-alist) (plist-get (cdr it) :result))) boop-result-alist)
                    (--filter (equal (plist-get (cdr it) :result) (cdr status)) boop-result-alist)))))
     (if with-status
-        (message "%s Boops: %s" (car status) (mapconcat (lambda (it) (format "[ %s ]" it)) with-status " "))
+        (if prefix
+            (-map (lambda (it) (let ((onselect (plist-get (cdr (assoc (intern it) boop-config-alist)) :onselect)))
+                            (when onselect (funcall onselect))))
+                  with-status)
+          (message "%s Boops: %s" (car status) (mapconcat (lambda (it) (format "[ %s ]" it)) with-status " ")))
       (message "No Boops have a status of [%s]" (car status)))))
 
 ;;;###autoload
