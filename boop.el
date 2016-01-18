@@ -408,11 +408,11 @@ Updating the result will also trigger any actions associated with that RESULT fo
       (progn (cancel-timer boop-timer) (setq boop-timer nil))
     (error "You are not running BOOP - Call `boop-start` to begin")))
 
-;; (run-at-time "10 sec" 10 'boop-execute-plugins)
+(provide 'boop)
 
-;;; boop.el ends here
 ;; Local Variables:
 ;; indent-tabs-mode: nil
 ;; eval: (flycheck-mode 0)
 ;; eval: (nameless-mode 1)
 ;; End:
+;;; boop.el ends here
