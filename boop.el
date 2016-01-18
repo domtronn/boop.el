@@ -201,7 +201,7 @@ single result."
   "Format an individual RESULT-ALIST using its ID."
   (boop--format-result
    (lambda (form id map override) (format "[%s] " (boop--propertize form id map override)))
-   'format))
+   (lambda (id) (car (split-string id ":")))))
 
 (defun boop--format-result-as-substring (result-alist)
   "Format an individual RESULT-ALIST using its ID."
@@ -238,11 +238,13 @@ You can override the symbol in FORM using SYMBOL-OVERRIDE."
 
 (defun boop--shorten-substring (id)
   "Formats an ID string to be the substring of up to 5 characters."
-  (substring id 0 (min (length id) 5)))
+  (let ((mainid (car (split-string id ":"))))
+    (substring mainid 0 (min (length mainid) 5))))
 
 (defun boop--shorten-delim (id)
   "Formats an ID string to be the substring of up to 5 characters."
-  (downcase (mapconcat (lambda (s) (substring s 0 1)) (s-split-words id) "-")))
+  (let ((mainid (car (split-string id ":"))))
+    (downcase (mapconcat (lambda (s) (substring s 0 1)) (s-split-words mainid) "-"))))
 
 ;; Changing Formats
 
@@ -258,9 +260,9 @@ You can override the symbol in FORM using SYMBOL-OVERRIDE."
   (let ((format-funcs))
     (mapatoms (lambda (sym) (when (string-match pattern (symbol-name sym))
                          (setq format-funcs (cons sym format-funcs)))))
-    (message "Format-Funcs: %s" format-funcs)
     (let* ((current (-elem-index var format-funcs))
            (next (mod (+ current 1) (length format-funcs))))
+      (message "Now formatting using: %s" (nth next format-funcs))
       (nth next format-funcs))))
 
 (defun boop-cycle-result-formats ()
