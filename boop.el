@@ -378,7 +378,10 @@ Updating the result will also trigger any actions associated with that RESULT fo
         (setq boop-config-alist result)))))
 
 (defun beep-boop (&optional prefix)
-  "List all of the boops with `STATUS`."
+  "List all of the boops with `STATUS`.
+
+When called with a PREFIX, this will invoke all select actions
+that match that status."
   (interactive "P")
   (let* ((status-alist
           (if prefix
