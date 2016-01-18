@@ -228,7 +228,9 @@ Providing a MAP will give that boop clickable effects.
 You can override the symbol in FORM using SYMBOL-OVERRIDE."
   (let ((symbol (plist-get form :symbol))
         (colour (plist-get form :color)))
-    (propertize (if symbol-override (format "%s" symbol-override) (format "%c " symbol))
+    (propertize (if symbol-override (format "%s" symbol-override)
+                  (if (not (functionp symbol))
+                      (format "%c " symbol) (funcall symbol)))
                 'face      `(foreground-color . ,colour)
                 'help-echo help-echo
                 'local-map (eval map)
