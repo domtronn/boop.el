@@ -53,7 +53,8 @@
 
 (defcustom boop-format-alist
   '((1 :symbol ?● :color "#63ca13" :status "Passing" :action (lambda (name &rest args) (message "[%s] is back to Passing" name)))
-    (0 :symbol ?● :color "#c64512" :status "Failing" :action (lambda (name &rest args) (beep) (message-box "[%s] has Failed" name)))
+    (0 :symbol ? :color "#c64512" :status "Failing"
+       :action (lambda (name &rest args) (beep) (shell-command (format "terminal-notifier -title '● Boop' -message '\\[%s\] has Failed' -sender org.gnu.Emacs" name))))
     (3 :symbol ?● :color "#23a2fb" :status "Building"))
    "An alist to map the echo results of the plugins to a display format.
 
@@ -171,17 +172,17 @@ single result."
   (let ((sorted-result-alist
          (if boop-sort-func (--sort (funcall boop-sort-func (plist-get (cdr it) :result) (cdr other)) boop-result-alist)
            boop-result-alist)))
-    (mapconcat f sorted-result-alist "")))
+    (mapconcat f sorted-result-alist " ")))
 
 (defun boop--format-results-grouped-by-result (f)
   "Format `boop-result-alist` into a propertized display string using F."
   (let ((results (--group-by (plist-get (cdr it) :result) boop-result-alist)))
-    (mapconcat (lambda (it) (format "[ %s]" (mapconcat f (cdr it) ""))) results " ")))
+    (mapconcat (lambda (it) (format "[%s]" (mapconcat f (cdr it) " "))) results " ")))
 
 (defun boop--format-results-grouped-by-group (f)
   "Format `boop-result-alist` into a propertized display string using F."
   (let ((results (--group-by (plist-get (cdr it) :group) boop-result-alist)))
-    (mapconcat (lambda (it) (format "[ %s]" (mapconcat f (cdr it) ""))) results " ")))
+    (mapconcat (lambda (it) (format "[%s]" (mapconcat f (cdr it) " "))) results " ")))
 
 ;;;;;; individual results
 
@@ -200,19 +201,19 @@ single result."
 (defun boop--format-result-as-is (result-alist)
   "Format an individual RESULT-ALIST using its ID."
   (boop--format-result
-   (lambda (form id map override) (format "[%s] " (boop--propertize form id map override)))
+   (lambda (form id map override) (format "[%s]" (boop--propertize form id map override)))
    (lambda (id) (car (split-string id ":")))))
 
 (defun boop--format-result-as-substring (result-alist)
   "Format an individual RESULT-ALIST using its ID."
   (boop--format-result
-   (lambda (form id map override) (format "[%s] " (boop--propertize form id map override)))
+   (lambda (form id map override) (format "[%s]" (boop--propertize form id map override)))
    'boop--shorten-substring))
 
 (defun boop--format-result-as-id (result-alist)
   "Format an individual RESULT-ALIST using its ID."
   (boop--format-result
-   (lambda (form id map override) (format "[%s] " (boop--propertize form id map override)))
+   (lambda (form id map override) (format "[%s]" (boop--propertize form id map override)))
    'boop--shorten-delim))
 
 (defun boop--format-result-as-symbol (result-alist)
@@ -230,8 +231,8 @@ You can override the symbol in FORM using SYMBOL-OVERRIDE."
         (colour (plist-get form :color)))
     (propertize (if symbol-override (format "%s" symbol-override)
                   (if (not (functionp symbol))
-                      (format "%c " symbol) (funcall symbol)))
-                'face      `(foreground-color . ,colour)
+                      (format "%c" symbol) (funcall symbol)))
+                'face `((foreground-color . ,colour))
                 'help-echo help-echo
                 'local-map (eval map)
                 'pointer (when map 'hand))))
@@ -329,7 +330,6 @@ Updating the result will also trigger any actions associated with that RESULT fo
                  action) name))))
 
 ;; Interactive Functions
-
 (defun boop-update ()
   "Execute all of the plugins and return a list of the results."
   (interactive)
